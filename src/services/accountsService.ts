@@ -2,8 +2,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { Db } from "../db/client";
 import { accounts, plans } from "../db/schema";
 import { generateApiKey, hashApiKey } from "../lib/apiKey";
-
-export class NotFoundError extends Error {}
+import { notFound } from "../lib/errors";
 
 export async function createAccount(
   db: Db,
@@ -22,8 +21,7 @@ export async function createAccount(
     .limit(1);
 
   if (!plan) {
-    throw new NotFoundError(`Account plan "${input.planName}" not found`);
-  }
+throw notFound(`Account plan "${input.planName}" not found`);  }
 
   const apiKey = generateApiKey();
 
