@@ -59,3 +59,24 @@ export async function listUsers(db: Db, accountId: string) {
     .where(eq(users.accountId, accountId))
     .orderBy(users.createdAt);
 }
+
+export async function changeUserPlan(
+  db: Db,
+  accountId: string,
+  externalId: string,
+  planName: string,
+) {
+  const plan = await findUserPlan(db, accountId, planName);
+
+  const [user] = await db
+    .update(users)
+    .set({ userPlanId: plan.id })
+    .where(and(eq(users.accountId, accountId), eq(users.externalId, externalId)))
+    .returning({ id: users.id, externalId: users.externalId });
+
+  if (!user) {
+    throw notFound(`User "${externalId}" not found`);
+  }
+
+  return { id: user.id, externalId: user.externalId, planName: plan.name };
+}

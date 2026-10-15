@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import type { Db } from "../db/client";
 import { apiKeyAuth } from "../middleware/auth";
-import { createUser, listUsers } from "../services/usersService";
+import {changeUserPlan,createUser, listUsers } from "../services/usersService";
 
 const createUserBody = z.object({
   externalId: z.string().min(1).max(200),
@@ -30,6 +30,17 @@ export function usersRouter(db: Db) {
       next(err);
     }
   });
+const changePlanBody = z.object({ planName: z.string().min(1) });
+
+router.patch("/:externalId/plan", async (req, res, next) => {
+  try {
+    const { planName } = changePlanBody.parse(req.body);
+    const user = await changeUserPlan(db, req.account!.id, String(req.params.externalId), planName);
+    res.json(user);
+  } catch (err) {
+    next(err);
+  }
+});
 
   return router;
 }
