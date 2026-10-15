@@ -4,6 +4,7 @@ import { adminRouter } from "./routes/admin";
 import { errorHandler } from "./middleware/errorHandler";
 import swaggerUi from "swagger-ui-express";
 import { openapi } from "./openapi";
+import { usersRouter } from "./routes/users";
 
 export function buildApp(db: Db, adminToken: string) {
   const app = express();
@@ -13,8 +14,9 @@ export function buildApp(db: Db, adminToken: string) {
     res.json({ status: "ok" });
   });
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(openapi));
-  app.use("/admin", adminRouter(db, adminToken));
-
+ 
+app.use("/admin", adminRouter(db, adminToken));
+app.use("/users", usersRouter(db));
   app.use(errorHandler);
   return app;
 }
