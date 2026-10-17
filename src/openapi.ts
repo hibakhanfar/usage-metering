@@ -183,7 +183,7 @@ export const openapi: Record<string, any> = {
       "400": { description: "Invalid input or plan ID" },
       "401": { description: "Missing or invalid API key" },
       "404": { description: "Custom plan not found or not editable" },
-      "409": { description: "Custom plan name already exists" },
+      "409": { description: "A record with these unique fields already exists" },
     },
   },
 },
