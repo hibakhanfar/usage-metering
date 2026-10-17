@@ -30,12 +30,21 @@ export function usersRouter(db: Db) {
       next(err);
     }
   });
-const changePlanBody = z.object({ planName: z.string().min(1) });
+const changePlanBody = z.object({
+  planId: z.uuid(),
+}).strict();
 
 router.patch("/:externalId/plan", async (req, res, next) => {
   try {
-    const { planName } = changePlanBody.parse(req.body);
-    const user = await changeUserPlan(db, req.account!.id, String(req.params.externalId), planName);
+    const { planId } = changePlanBody.parse(req.body);
+
+    const user = await changeUserPlan(
+      db,
+      req.account!.id,
+      String(req.params.externalId),
+      planId,
+    );
+
     res.json(user);
   } catch (err) {
     next(err);

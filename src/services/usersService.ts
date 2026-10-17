@@ -1,7 +1,7 @@
 import { and, eq, isNull, or } from "drizzle-orm";
 import type { Db } from "../db/client";
 import { plans, users } from "../db/schema";
-import { conflict, notFound } from "../lib/errors";
+import { badRequest, conflict, notFound } from "../lib/errors";
 
 async function findUserPlan(db: Db, accountId: string, planName: string) {
   const [plan] = await db
@@ -64,19 +64,51 @@ export async function changeUserPlan(
   db: Db,
   accountId: string,
   externalId: string,
-  planName: string,
+  planId: string,
 ) {
-  const plan = await findUserPlan(db, accountId, planName);
+  const [plan] = await db
+    .select()
+    .from(plans)
+    .where(
+      and(
+        eq(plans.id, planId),
+        or(
+          isNull(plans.accountId),
+          eq(plans.accountId, accountId),
+        ),
+      ),
+    )
+    .limit(1);
+
+  if (!plan) {
+    throw notFound("Plan not found");
+  }
+
+  if (plan.kind !== "user") {
+    throw badRequest("A user requires a user plan");
+  }
 
   const [user] = await db
     .update(users)
     .set({ userPlanId: plan.id })
-    .where(and(eq(users.accountId, accountId), eq(users.externalId, externalId)))
-    .returning({ id: users.id, externalId: users.externalId });
+    .where(
+      and(
+        eq(users.accountId, accountId),
+        eq(users.externalId, externalId),
+      ),
+    )
+    .returning({
+      id: users.id,
+      externalId: users.externalId,
+      userPlanId: users.userPlanId,
+    });
 
   if (!user) {
-    throw notFound(`User "${externalId}" not found`);
+    throw notFound("User not found");
   }
 
-  return { id: user.id, externalId: user.externalId, planName: plan.name };
+  return {
+    ...user,
+    plan,
+  };
 }
