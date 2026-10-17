@@ -1,7 +1,7 @@
 import { and, eq, isNull, or } from "drizzle-orm";
 import type { Db } from "../db/client";
-import { plans } from "../db/schema";
-import { conflict, notFound } from "../lib/errors";
+import {  accounts, plans } from "../db/schema";
+import { badRequest, conflict, notFound } from "../lib/errors";
 
 export async function listPlans(db: Db, accountId: string) {
   return db
@@ -74,4 +74,51 @@ export async function updatePlan(
   }
 
   return plan;
+}
+
+export async function changeAccountPlan(
+  db: Db,
+  accountId: string,
+  planId: string,
+) {
+  const [plan] = await db
+    .select()
+    .from(plans)
+    .where(
+      and(
+        eq(plans.id, planId),
+        or(
+          isNull(plans.accountId),
+          eq(plans.accountId, accountId),
+        ),
+      ),
+    )
+    .limit(1);
+
+  if (!plan) {
+    throw notFound("Plan not found");
+  }
+
+  if (plan.kind !== "account") {
+    throw badRequest("An account requires an account plan");
+  }
+
+  const [account] = await db
+    .update(accounts)
+    .set({ accountPlanId: plan.id })
+    .where(eq(accounts.id, accountId))
+    .returning({
+      id: accounts.id,
+      name: accounts.name,
+      accountPlanId: accounts.accountPlanId,
+    });
+
+  if (!account) {
+    throw notFound("Account not found");
+  }
+
+  return {
+    ...account,
+    plan,
+  };
 }

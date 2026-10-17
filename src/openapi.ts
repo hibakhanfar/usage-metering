@@ -183,11 +183,125 @@ export const openapi: Record<string, any> = {
       "400": { description: "Invalid input or plan ID" },
       "401": { description: "Missing or invalid API key" },
       "404": { description: "Custom plan not found or not editable" },
-      "409": { description: "Custom plan name already exists" },
+      "409": { description: "A record with these unique fields already exists" },
     },
   },
 },
-
+"/account/plan": {
+  patch: {
+    summary: "Change the current account's plan",
+    tags: ["Account"],
+    security: [{ ApiKey: [] }],
+    requestBody: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            required: ["planId"],
+            properties: {
+              planId: {
+                type: "string",
+                format: "uuid",
+              },
+            },
+          },
+        },
+      },
+    },
+    responses: {
+      "200": { description: "Account plan changed" },
+      "400": { description: "Invalid input or incorrect plan kind" },
+      "401": { description: "Missing or invalid API key" },
+      "404": { description: "Plan not found or not accessible" },
+    },
+  },
+},
+"/users/{externalId}/plan": {
+  patch: {
+    summary: "Change a user's plan",
+    tags: ["Users"],
+    security: [{ ApiKey: [] }],
+    parameters: [
+      {
+        name: "externalId",
+        in: "path",
+        required: true,
+        schema: {
+          type: "string",
+        },
+        example: "hiba",
+      },
+    ],
+    requestBody: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            required: ["planId"],
+            properties: {
+              planId: {
+                type: "string",
+                format: "uuid",
+              },
+            },
+          },
+        },
+      },
+    },
+    responses: {
+      "200": { description: "User plan changed" },
+      "400": { description: "Invalid input or incorrect plan kind" },
+      "401": { description: "Missing or invalid API key" },
+      "404": { description: "User or accessible plan not found" },
+    },
+  },
+},
+"/users": {
+  post: {
+    summary: "Register a user under the current account",
+    tags: ["Users"],
+    security: [{ ApiKey: [] }],
+    requestBody: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            required: ["externalId"],
+            properties: {
+              externalId: {
+                type: "string",
+                minLength: 1,
+                maxLength: 200,
+              },
+              planId: {
+                type: "string",
+                format: "uuid",
+                description:
+                  "User plan ID. Defaults to the predefined Basic plan if omitted.",
+              },
+            },
+          },
+          example: {
+            externalId: "sara",
+          },
+        },
+      },
+    },
+    responses: {
+      "201": { description: "User created" },
+      "400": { description: "Invalid input" },
+      "401": { description: "Missing or invalid API key" },
+      "404": { description: "User plan not found or not accessible" },
+      "409": { description: "User already exists under this account" },
+    },
+  },
+},
     "/health": {
       get: {
         summary: "Health check",
