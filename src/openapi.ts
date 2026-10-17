@@ -41,6 +41,153 @@ export const openapi: Record<string, any> = {
     },
   },
   paths: {
+    "/plans": {
+  get: {
+    summary: "List predefined plans and this account's custom plans",
+    tags: ["Plans"],
+    security: [{ ApiKey: [] }],
+    responses: {
+      "200": {
+        description: "Available plans",
+      },
+      "401": {
+        description: "Missing or invalid API key",
+      },
+    },
+  },
+    post: {
+    summary: "Create a custom plan for this account",
+    tags: ["Plans"],
+    security: [{ ApiKey: [] }],
+    requestBody: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            required: [
+              "kind",
+              "name",
+              "monthlyAllowance",
+              "dailyAllowance",
+              "maxPerRequest",
+            ],
+            properties: {
+              kind: {
+                type: "string",
+                enum: ["account", "user"],
+              },
+              name: {
+                type: "string",
+                minLength: 1,
+                maxLength: 200,
+              },
+              monthlyAllowance: {
+                type: "integer",
+                minimum: 0,
+                maximum: Number.MAX_SAFE_INTEGER,
+                nullable: true,
+              },
+              dailyAllowance: {
+                type: "integer",
+                minimum: 0,
+                maximum: Number.MAX_SAFE_INTEGER,
+                nullable: true,
+              },
+              maxPerRequest: {
+                type: "integer",
+                minimum: 0,
+                maximum: Number.MAX_SAFE_INTEGER,
+                nullable: true,
+              },
+            },
+          },
+          example: {
+            kind: "user",
+            name: "Team",
+            monthlyAllowance: 2000,
+            dailyAllowance: null,
+            maxPerRequest: 50,
+          },
+        },
+      },
+    },
+    responses: {
+      "201": { description: "Custom plan created" },
+      "400": { description: "Invalid input" },
+      "401": { description: "Missing or invalid API key" },
+      "409": { description: "Custom plan already exists" },
+    },
+  },
+},
+
+"/plans/{planId}": {
+  patch: {
+    summary: "Update this account's custom plan",
+    tags: ["Plans"],
+    security: [{ ApiKey: [] }],
+    parameters: [
+      {
+        name: "planId",
+        in: "path",
+        required: true,
+        schema: {
+          type: "string",
+          format: "uuid",
+        },
+      },
+    ],
+    requestBody: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            minProperties: 1,
+            properties: {
+              name: {
+                type: "string",
+                minLength: 1,
+                maxLength: 200,
+              },
+              monthlyAllowance: {
+                type: "integer",
+                minimum: 0,
+                maximum: Number.MAX_SAFE_INTEGER,
+                nullable: true,
+              },
+              dailyAllowance: {
+                type: "integer",
+                minimum: 0,
+                maximum: Number.MAX_SAFE_INTEGER,
+                nullable: true,
+              },
+              maxPerRequest: {
+                type: "integer",
+                minimum: 0,
+                maximum: Number.MAX_SAFE_INTEGER,
+                nullable: true,
+              },
+            },
+          },
+          example: {
+            monthlyAllowance: 3000,
+          },
+        },
+      },
+    },
+    responses: {
+      "200": { description: "Custom plan updated" },
+      "400": { description: "Invalid input or plan ID" },
+      "401": { description: "Missing or invalid API key" },
+      "404": { description: "Custom plan not found or not editable" },
+      "409": { description: "Custom plan name already exists" },
+    },
+  },
+},
+
     "/health": {
       get: {
         summary: "Health check",

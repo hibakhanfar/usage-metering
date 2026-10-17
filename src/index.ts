@@ -6,8 +6,11 @@ import { buildApp } from "./app";
 async function main() {
   await runMigrations();
   await seedPlans(db);
+  const adminToken = process.env.ADMIN_TOKEN;
 
-  const adminToken = process.env.ADMIN_TOKEN ?? "dev-admin-token";
+  if (!adminToken || adminToken.trim() === "") {
+    throw new Error("ADMIN_TOKEN environment variable is required");
+  }
   const port = Number(process.env.PORT ?? 3000);
 
   const app = buildApp(db, adminToken);
