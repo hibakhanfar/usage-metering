@@ -3,32 +3,49 @@ import type { Db } from "../db/client";
 import { plans, users } from "../db/schema";
 import { badRequest, conflict, notFound } from "../lib/errors";
 
-async function findUserPlan(db: Db, accountId: string, planName: string) {
-  const [plan] = await db
-    .select({ id: plans.id, name: plans.name })
-    .from(plans)
-    .where(
-      and(
+async function findUserPlan(
+  db: Db,
+  accountId: string,
+  planId?: string,
+) {
+  const condition = planId
+    ? and(
+        eq(plans.id, planId),
         eq(plans.kind, "user"),
-        eq(plans.name, planName),
-        // predefined plans OR plans owned by THIS account only
-        or(isNull(plans.accountId), eq(plans.accountId, accountId)),
-      ),
-    )
+        or(
+          isNull(plans.accountId),
+          eq(plans.accountId, accountId),
+        ),
+      )
+    : and(
+        isNull(plans.accountId),
+        eq(plans.kind, "user"),
+        eq(plans.name, "Basic"),
+        eq(plans.isPredefined, true),
+      );
+
+  const [plan] = await db
+    .select({
+      id: plans.id,
+      name: plans.name,
+    })
+    .from(plans)
+    .where(condition)
     .limit(1);
 
   if (!plan) {
-    throw notFound(`User plan "${planName}" not found`);
+    throw notFound("User plan not found or not accessible");
   }
+
   return plan;
 }
 
 export async function createUser(
   db: Db,
   accountId: string,
-  input: { externalId: string; planName: string },
+  input: { externalId: string; planId?: string },
 ) {
-  const plan = await findUserPlan(db, accountId, input.planName);
+const plan = await findUserPlan(db, accountId, input.planId);
 
   const [user] = await db
     .insert(users)

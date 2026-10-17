@@ -5,9 +5,9 @@ import { apiKeyAuth } from "../middleware/auth";
 import {changeUserPlan,createUser, listUsers } from "../services/usersService";
 
 const createUserBody = z.object({
-  externalId: z.string().min(1).max(200),
-  planName: z.string().min(1).default("Basic"),
-});
+  externalId: z.string().trim().min(1).max(200),
+  planId: z.uuid().optional(),
+}).strict();
 
 export function usersRouter(db: Db) {
   const router = Router();

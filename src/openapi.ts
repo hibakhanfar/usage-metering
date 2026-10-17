@@ -271,6 +271,7 @@ export const openapi: Record<string, any> = {
         "application/json": {
           schema: {
             type: "object",
+            additionalProperties: false,
             required: ["externalId"],
             properties: {
               externalId: {
@@ -278,16 +279,16 @@ export const openapi: Record<string, any> = {
                 minLength: 1,
                 maxLength: 200,
               },
-              planName: {
+              planId: {
                 type: "string",
-                minLength: 1,
-                default: "Basic",
+                format: "uuid",
+                description:
+                  "User plan ID. Defaults to the predefined Basic plan if omitted.",
               },
             },
           },
           example: {
-            externalId: "hiba",
-            planName: "Basic",
+            externalId: "sara",
           },
         },
       },
@@ -296,7 +297,7 @@ export const openapi: Record<string, any> = {
       "201": { description: "User created" },
       "400": { description: "Invalid input" },
       "401": { description: "Missing or invalid API key" },
-      "404": { description: "User plan not found" },
+      "404": { description: "User plan not found or not accessible" },
       "409": { description: "User already exists under this account" },
     },
   },
