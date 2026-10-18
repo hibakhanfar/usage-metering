@@ -41,6 +41,68 @@ export const openapi: Record<string, any> = {
     },
   },
   paths: {
+        "/consume": {
+      post: {
+        summary: "Consume units for a user (checks account and user plans together)",
+        description:
+          "Accepts the full amount only if every account and user rule allows it; a rejection consumes nothing. " +
+          "Send the same requestId when retrying the SAME operation (it is safe: nothing is consumed twice). " +
+          "Use a NEW requestId for each new operation. Both accepted and rejected decisions return HTTP 200; check `accepted`.",
+        tags: ["Consume"],
+        security: [{ ApiKey: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["userId", "units", "requestId"],
+                properties: {
+                  userId: { type: "string", example: "ali", description: "The externalId you registered the user with" },
+                  units: { type: "integer", minimum: 1, maximum: 1000000000, example: 10 },
+                  requestId: { type: "string", example: "doc-123", description: "Identifies the operation (idempotency key)" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Decision (accepted or rejected). `replayed: true` means this requestId was already decided.",
+            content: {
+              "application/json": {
+                example: {
+                  requestId: "doc-123",
+                  userId: "ali",
+                  units: 25,
+                  accepted: false,
+                  replayed: false,
+                  rejectedBy: "user",
+                  rule: "max_per_request",
+                  violations: [{ scope: "user", rule: "max_per_request", limit: 20, requested: 25 }],
+                  user: {
+                    plan: { id: "...", name: "Basic" },
+                    maxPerRequest: 20,
+                    monthly: { limit: 1000, used: 10, remaining: 990 },
+                    daily: { limit: 100, used: 10, remaining: 90 },
+                  },
+                  account: {
+                    plan: { id: "...", name: "Starter" },
+                    maxPerRequest: 100,
+                    monthly: { limit: 10000, used: 10, remaining: 9990 },
+                    daily: { limit: 1000, used: 10, remaining: 990 },
+                  },
+                },
+              },
+            },
+          },
+          "400": { description: "Invalid input" },
+          "401": { description: "Missing or invalid API key" },
+          "404": { description: "User not found under this account" },
+          "409": { description: "requestId already used with different userId or units" },
+        },
+      },
+    },
     "/plans": {
   get: {
     summary: "List predefined plans and this account's custom plans",

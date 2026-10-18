@@ -7,6 +7,7 @@ import { openapi } from "./openapi";
 import { usersRouter } from "./routes/users";
 import { plansRouter } from "./routes/plans";
 import { accountRouter } from "./routes/account";
+import { consumeRouter } from "./routes/consume";
 
 export function buildApp(db: Db, adminToken: string) {
   const app = express();
@@ -21,6 +22,7 @@ app.use("/admin", adminRouter(db, adminToken));
 app.use("/users", usersRouter(db));
 app.use("/plans", plansRouter(db));
 app.use("/account", accountRouter(db));
+app.use("/consume", consumeRouter(db));
   app.use(errorHandler);
   return app;
 }
