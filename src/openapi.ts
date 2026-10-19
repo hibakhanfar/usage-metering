@@ -41,6 +41,110 @@ export const openapi: Record<string, any> = {
     },
   },
   paths: {
+    "/usage": {
+  get: {
+    summary: "View account usage and a page of users' usage",
+    description:
+      "Current month includes current plans, monthly usage, and today's usage. " +
+      "Past months include consumed units only; historical plan limits are not stored. " +
+      "limit and offset paginate users, not account totals.",
+    tags: ["Usage"],
+    security: [{ ApiKey: [] }],
+    parameters: [
+      {
+        name: "month",
+        in: "query",
+        schema: {
+          type: "string",
+          pattern: "^(?!0000)\\d{4}-(0[1-9]|1[0-2])$",
+          example: "2026-10",
+        },
+      },
+      {
+        name: "limit",
+        in: "query",
+        schema: {
+          type: "integer",
+          minimum: 1,
+          maximum: 100,
+          default: 20,
+        },
+      },
+      {
+        name: "offset",
+        in: "query",
+        schema: {
+          type: "integer",
+          minimum: 0,
+          maximum: 2147483647,
+          default: 0,
+        },
+      },
+    ],
+    responses: {
+      "200": { description: "Account usage and paginated users" },
+      "400": { description: "Invalid query or future month" },
+      "401": { description: "Missing or invalid API key" },
+      "404": { description: "Account not found" },
+    },
+  },
+},
+"/requests": {
+  get: {
+    summary: "List previous consume decisions",
+    description:
+      "Newest first. Offset pagination may shift when new requests are added between page requests.",
+    tags: ["Usage"],
+    security: [{ ApiKey: [] }],
+    parameters: [
+      {
+        name: "limit",
+        in: "query",
+        schema: {
+          type: "integer",
+          minimum: 1,
+          maximum: 100,
+          default: 20,
+        },
+      },
+      {
+        name: "offset",
+        in: "query",
+        schema: {
+          type: "integer",
+          minimum: 0,
+          maximum: 2147483647,
+          default: 0,
+        },
+      },
+      {
+        name: "userId",
+        in: "query",
+        description: "Filter by the user's externalId",
+        schema: { type: "string", minLength: 1, maxLength: 200 },
+      },
+      {
+        name: "accepted",
+        in: "query",
+        schema: { type: "boolean" },
+      },
+      {
+        name: "month",
+        in: "query",
+        schema: {
+          type: "string",
+          pattern: "^(?!0000)\\d{4}-(0[1-9]|1[0-2])$",
+          example: "2026-10",
+        },
+      },
+    ],
+    responses: {
+      "200": { description: "Paginated request history" },
+      "400": { description: "Invalid query or future month" },
+      "401": { description: "Missing or invalid API key" },
+    },
+  },
+},
         "/consume": {
       post: {
         summary: "Consume units for a user (checks account and user plans together)",
