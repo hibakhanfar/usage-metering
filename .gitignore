@@ -1,5 +1,7 @@
 node_modules
 dist
 .env
-body.json
-plan.json
+/c*.json
+/u*.json
+/body.json
+/plan.json
