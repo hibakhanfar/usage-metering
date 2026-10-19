@@ -49,5 +49,21 @@ services:
       api:
         condition: service_healthy
     init: true
+  k6:
+    image: grafana/k6:1.0.0
+    profiles:
+      - performance
+    environment:
+      API_BASE_URL: http://api:3000
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?ADMIN_TOKEN is required}
+    volumes:
+      - ./performance:/scripts:ro
+      - ./performance/results:/results
+    depends_on:
+      api:
+        condition: service_healthy
+    command:
+      - run
+      - /scripts/load.ts
 volumes:
   metering_data:

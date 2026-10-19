@@ -115,16 +115,50 @@ function counterWhere(accountId: string, spec: CounterSpec) {
     eq(usageCounters.periodStart, spec.periodStart),
   );
 }
+async function ensureCounters(
+  tx: Tx,
+  accountId: string,
+  specs: CounterSpec[],
+) {
+  if (specs.length === 0) {
+    return;
+  }
 
-async function ensureCounters(tx: Tx, accountId: string, specs: CounterSpec[]) {
+  const existing = await tx
+    .select({
+      userId: usageCounters.userId,
+      periodType: usageCounters.periodType,
+      periodStart: usageCounters.periodStart,
+    })
+    .from(usageCounters)
+    .where(
+      or(
+        ...specs.map((spec) => counterWhere(accountId, spec)),
+      ),
+    );
+
+  const missing = specs.filter(
+    (spec) =>
+      !existing.some(
+        (counter) =>
+          counter.userId === spec.userId &&
+          counter.periodType === spec.period &&
+          counter.periodStart === spec.periodStart,
+      ),
+  );
+
+  if (missing.length === 0) {
+    return;
+  }
+
   await tx
     .insert(usageCounters)
     .values(
-      specs.map((s) => ({
+      missing.map((spec) => ({
         accountId,
-        userId: s.userId,
-        periodType: s.period,
-        periodStart: s.periodStart,
+        userId: spec.userId,
+        periodType: spec.period,
+        periodStart: spec.periodStart,
         unitsUsed: 0,
       })),
     )
