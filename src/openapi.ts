@@ -41,6 +41,172 @@ export const openapi: Record<string, any> = {
     },
   },
   paths: {
+    "/usage": {
+  get: {
+    summary: "View account usage and a page of users' usage",
+    description:
+      "Current month includes current plans, monthly usage, and today's usage. " +
+      "Past months include consumed units only; historical plan limits are not stored. " +
+      "limit and offset paginate users, not account totals.",
+    tags: ["Usage"],
+    security: [{ ApiKey: [] }],
+    parameters: [
+      {
+        name: "month",
+        in: "query",
+        schema: {
+          type: "string",
+          pattern: "^(?!0000)\\d{4}-(0[1-9]|1[0-2])$",
+          example: "2026-10",
+        },
+      },
+      {
+        name: "limit",
+        in: "query",
+        schema: {
+          type: "integer",
+          minimum: 1,
+          maximum: 100,
+          default: 20,
+        },
+      },
+      {
+        name: "offset",
+        in: "query",
+        schema: {
+          type: "integer",
+          minimum: 0,
+          maximum: 2147483647,
+          default: 0,
+        },
+      },
+    ],
+    responses: {
+      "200": { description: "Account usage and paginated users" },
+      "400": { description: "Invalid query or future month" },
+      "401": { description: "Missing or invalid API key" },
+      "404": { description: "Account not found" },
+    },
+  },
+},
+"/requests": {
+  get: {
+    summary: "List previous consume decisions",
+    description:
+      "Newest first. Offset pagination may shift when new requests are added between page requests.",
+    tags: ["Usage"],
+    security: [{ ApiKey: [] }],
+    parameters: [
+      {
+        name: "limit",
+        in: "query",
+        schema: {
+          type: "integer",
+          minimum: 1,
+          maximum: 100,
+          default: 20,
+        },
+      },
+      {
+        name: "offset",
+        in: "query",
+        schema: {
+          type: "integer",
+          minimum: 0,
+          maximum: 2147483647,
+          default: 0,
+        },
+      },
+      {
+        name: "userId",
+        in: "query",
+        description: "Filter by the user's externalId",
+        schema: { type: "string", minLength: 1, maxLength: 200 },
+      },
+      {
+        name: "accepted",
+        in: "query",
+        schema: { type: "boolean" },
+      },
+      {
+        name: "month",
+        in: "query",
+        schema: {
+          type: "string",
+          pattern: "^(?!0000)\\d{4}-(0[1-9]|1[0-2])$",
+          example: "2026-10",
+        },
+      },
+    ],
+    responses: {
+      "200": { description: "Paginated request history" },
+      "400": { description: "Invalid query or future month" },
+      "401": { description: "Missing or invalid API key" },
+    },
+  },
+},
+        "/consume": {
+      post: {
+        summary: "Consume units for a user (checks account and user plans together)",
+        description:
+          "Accepts the full amount only if every account and user rule allows it; a rejection consumes nothing. " +
+          "Send the same requestId when retrying the SAME operation (it is safe: nothing is consumed twice). " +
+          "Use a NEW requestId for each new operation. Both accepted and rejected decisions return HTTP 200; check `accepted`.",
+        tags: ["Consume"],
+        security: [{ ApiKey: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["userId", "units", "requestId"],
+                properties: {
+                  userId: { type: "string", example: "ali", description: "The externalId you registered the user with" },
+                  units: { type: "integer", minimum: 1, maximum: 1000000000, example: 10 },
+                  requestId: { type: "string", example: "doc-123", description: "Identifies the operation (idempotency key)" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Decision (accepted or rejected). `replayed: true` means this requestId was already decided.",
+            content: {
+              "application/json": {
+                example: {
+                  requestId: "doc-123",
+                  userId: "ali",
+                  units: 25,
+                  accepted: false,
+                  replayed: false,
+                  rejectedBy: "user",
+                  rule: "max_per_request",
+                  violations: [{ scope: "user", rule: "max_per_request", limit: 20, requested: 25 }],
+                  user: {
+                    plan: { id: "...", name: "Basic" },
+                    maxPerRequest: 20,
+                    monthly: { limit: 1000, used: 10, remaining: 990 },
+                    daily: { limit: 100, used: 10, remaining: 90 },
+                  },
+                  account: {
+                    plan: { id: "...", name: "Starter" },
+                    maxPerRequest: 100,
+                    monthly: { limit: 10000, used: 10, remaining: 9990 },
+                    daily: { limit: 1000, used: 10, remaining: 990 },
+                  },
+                },
+              },
+            },
+          },
+          "400": { description: "Invalid input" },
+          "401": { description: "Missing or invalid API key" },
+          "404": { description: "User not found under this account" },
+          "409": { description: "requestId already used with different userId or units" },
+        },
+      },
+    },
     "/plans": {
   get: {
     summary: "List predefined plans and this account's custom plans",
