@@ -1,0 +1,782 @@
+{
+  "generatedAt": "2026-10-20T05:19:35.335Z",
+  "workload": {
+    "requests": 3000,
+    "virtualUsers": 50,
+    "accounts": 10,
+    "registeredUsersPerAccount": 10,
+    "accountMonthlyAllowance": 150,
+    "unitsPerOperation": 1
+  },
+  "summary": {
+    "root_group": {
+      "name": "",
+      "path": "",
+      "id": "d41d8cd98f00b204e9800998ecf8427e",
+      "groups": [
+        {
+          "groups": [],
+          "checks": [
+              {
+                "name": "account 0: all ten users are included",
+                "path": "::teardown::account 0: all ten users are included",
+                "id": "131bc965945ee44f066e4c065fa01734",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "passes": 1,
+                "fails": 0,
+                "name": "account 0: account usage equals allowance",
+                "path": "::teardown::account 0: account usage equals allowance",
+                "id": "6cf2784335d614d5b8e108bd281836d1"
+              },
+              {
+                "id": "cb3753b55fe80133abdd57feb38b3a55",
+                "passes": 1,
+                "fails": 0,
+                "name": "account 0: remaining allowance is zero",
+                "path": "::teardown::account 0: remaining allowance is zero"
+              },
+              {
+                "fails": 0,
+                "name": "account 0: account usage equals sum of user usage",
+                "path": "::teardown::account 0: account usage equals sum of user usage",
+                "id": "aded17e8c5d404ea1479e7c02b251aff",
+                "passes": 1
+              },
+              {
+                "fails": 0,
+                "name": "account 0: daily totals match monthly totals",
+                "path": "::teardown::account 0: daily totals match monthly totals",
+                "id": "16e34c4e582e3263eeacf86707d9c519",
+                "passes": 1
+              },
+              {
+                "id": "2690042686c0d4fdb55c5a3839edb062",
+                "passes": 1,
+                "fails": 0,
+                "name": "account 0: every operation has one history record",
+                "path": "::teardown::account 0: every operation has one history record"
+              },
+              {
+                "path": "::teardown::account 0: accepted history matches consumption",
+                "id": "7c3982fd4ddaefca4b0a1bc59a294b85",
+                "passes": 1,
+                "fails": 0,
+                "name": "account 0: accepted history matches consumption"
+              },
+              {
+                "name": "account 1: all ten users are included",
+                "path": "::teardown::account 1: all ten users are included",
+                "id": "d7ff3f0563542d82146a498dedef7692",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "name": "account 1: account usage equals allowance",
+                "path": "::teardown::account 1: account usage equals allowance",
+                "id": "f6261be6f0b90993c422debe8a521a44",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "name": "account 1: remaining allowance is zero",
+                "path": "::teardown::account 1: remaining allowance is zero",
+                "id": "22620df5076cccda4bc13e9d910ebc95",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "name": "account 1: account usage equals sum of user usage",
+                "path": "::teardown::account 1: account usage equals sum of user usage",
+                "id": "f055ba22cb7c243c835a14ef5121b741",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "name": "account 1: daily totals match monthly totals",
+                "path": "::teardown::account 1: daily totals match monthly totals",
+                "id": "f45194c55de599869cbc0338e1b65ec1",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "path": "::teardown::account 1: every operation has one history record",
+                "id": "b3f980a579e20c855c90638e5b8853f5",
+                "passes": 1,
+                "fails": 0,
+                "name": "account 1: every operation has one history record"
+              },
+              {
+                "fails": 0,
+                "name": "account 1: accepted history matches consumption",
+                "path": "::teardown::account 1: accepted history matches consumption",
+                "id": "70bc0faf87a0a23be146ae068b3667ab",
+                "passes": 1
+              },
+              {
+                "passes": 1,
+                "fails": 0,
+                "name": "account 2: all ten users are included",
+                "path": "::teardown::account 2: all ten users are included",
+                "id": "126a0ed5f4eff54a1cf5573149f52699"
+              },
+              {
+                "id": "032481772caedfecc177f948383b3dfe",
+                "passes": 1,
+                "fails": 0,
+                "name": "account 2: account usage equals allowance",
+                "path": "::teardown::account 2: account usage equals allowance"
+              },
+              {
+                "fails": 0,
+                "name": "account 2: remaining allowance is zero",
+                "path": "::teardown::account 2: remaining allowance is zero",
+                "id": "4c7dddc92cc0e2edb384254a86e16791",
+                "passes": 1
+              },
+              {
+                "id": "bc784eecacffa18a198297fa9cb7faef",
+                "passes": 1,
+                "fails": 0,
+                "name": "account 2: account usage equals sum of user usage",
+                "path": "::teardown::account 2: account usage equals sum of user usage"
+              },
+              {
+                "name": "account 2: daily totals match monthly totals",
+                "path": "::teardown::account 2: daily totals match monthly totals",
+                "id": "7341ea4554ed40fe8d80a6c19c37ed2c",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "path": "::teardown::account 2: every operation has one history record",
+                "id": "18688159698c00d8a142deb71407bcd1",
+                "passes": 1,
+                "fails": 0,
+                "name": "account 2: every operation has one history record"
+              },
+              {
+                "id": "37711c3a900270590be9194d5718348d",
+                "passes": 1,
+                "fails": 0,
+                "name": "account 2: accepted history matches consumption",
+                "path": "::teardown::account 2: accepted history matches consumption"
+              },
+              {
+                "name": "account 3: all ten users are included",
+                "path": "::teardown::account 3: all ten users are included",
+                "id": "b3c35023611239ee3e7f6ce6081157d3",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "id": "1343328e30e8bdb8ddefea75f306b419",
+                "passes": 1,
+                "fails": 0,
+                "name": "account 3: account usage equals allowance",
+                "path": "::teardown::account 3: account usage equals allowance"
+              },
+              {
+                "name": "account 3: remaining allowance is zero",
+                "path": "::teardown::account 3: remaining allowance is zero",
+                "id": "bba700d566bb788b17922a3dcb97eba4",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "name": "account 3: account usage equals sum of user usage",
+                "path": "::teardown::account 3: account usage equals sum of user usage",
+                "id": "66135fc7ed21164eb173fe4c5ad2fea2",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "id": "4986504f2d6f1507d468c3533e337c13",
+                "passes": 1,
+                "fails": 0,
+                "name": "account 3: daily totals match monthly totals",
+                "path": "::teardown::account 3: daily totals match monthly totals"
+              },
+              {
+                "path": "::teardown::account 3: every operation has one history record",
+                "id": "92dc9c8f75ca2a1a742d7b658b6d1ecb",
+                "passes": 1,
+                "fails": 0,
+                "name": "account 3: every operation has one history record"
+              },
+              {
+                "name": "account 3: accepted history matches consumption",
+                "path": "::teardown::account 3: accepted history matches consumption",
+                "id": "85a6f6b4504b8ac74215bbac9033803b",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "passes": 1,
+                "fails": 0,
+                "name": "account 4: all ten users are included",
+                "path": "::teardown::account 4: all ten users are included",
+                "id": "39d7a9ee4f74cf43db82acf071f3f273"
+              },
+              {
+                "name": "account 4: account usage equals allowance",
+                "path": "::teardown::account 4: account usage equals allowance",
+                "id": "f78430755f063d6f77882a4141bf96ad",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "passes": 1,
+                "fails": 0,
+                "name": "account 4: remaining allowance is zero",
+                "path": "::teardown::account 4: remaining allowance is zero",
+                "id": "61fa0cb3b6900ea624fe5a194f8fabaf"
+              },
+              {
+                "fails": 0,
+                "name": "account 4: account usage equals sum of user usage",
+                "path": "::teardown::account 4: account usage equals sum of user usage",
+                "id": "20955c29a2bf42080f22d0a1b980247e",
+                "passes": 1
+              },
+              {
+                "id": "028604e22fddd49c0e10f603d40daaa5",
+                "passes": 1,
+                "fails": 0,
+                "name": "account 4: daily totals match monthly totals",
+                "path": "::teardown::account 4: daily totals match monthly totals"
+              },
+              {
+                "name": "account 4: every operation has one history record",
+                "path": "::teardown::account 4: every operation has one history record",
+                "id": "e6378e3e08c8f59a132e3db1024f4b76",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "fails": 0,
+                "name": "account 4: accepted history matches consumption",
+                "path": "::teardown::account 4: accepted history matches consumption",
+                "id": "53b5e43aad2d1d4ebab7c889f8a61bd3",
+                "passes": 1
+              },
+              {
+                "name": "account 5: all ten users are included",
+                "path": "::teardown::account 5: all ten users are included",
+                "id": "a7c06f1969ba641be62e5eaec5c827a6",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "id": "ae5a6fa1e06e800959fc308436b11feb",
+                "passes": 1,
+                "fails": 0,
+                "name": "account 5: account usage equals allowance",
+                "path": "::teardown::account 5: account usage equals allowance"
+              },
+              {
+                "name": "account 5: remaining allowance is zero",
+                "path": "::teardown::account 5: remaining allowance is zero",
+                "id": "002a37f15f1dd8652ad0591a30a45919",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "fails": 0,
+                "name": "account 5: account usage equals sum of user usage",
+                "path": "::teardown::account 5: account usage equals sum of user usage",
+                "id": "a0ce331b2720f20d7e7fde72e4a405bf",
+                "passes": 1
+              },
+              {
+                "name": "account 5: daily totals match monthly totals",
+                "path": "::teardown::account 5: daily totals match monthly totals",
+                "id": "81edc5180f5c9e5c46fc132ef3e12b0c",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "name": "account 5: every operation has one history record",
+                "path": "::teardown::account 5: every operation has one history record",
+                "id": "1b0387180f7c67caf29fc56319d95637",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "passes": 1,
+                "fails": 0,
+                "name": "account 5: accepted history matches consumption",
+                "path": "::teardown::account 5: accepted history matches consumption",
+                "id": "6890fb5ef604dd860b6f2267cf8b323b"
+              },
+              {
+                "fails": 0,
+                "name": "account 6: all ten users are included",
+                "path": "::teardown::account 6: all ten users are included",
+                "id": "d3a0704cc3753fff5f32e28846313318",
+                "passes": 1
+              },
+              {
+                "name": "account 6: account usage equals allowance",
+                "path": "::teardown::account 6: account usage equals allowance",
+                "id": "ece30b0bdcddac0ed17384c332f1a4f3",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "id": "4516e5075bac2cba24439015e279f874",
+                "passes": 1,
+                "fails": 0,
+                "name": "account 6: remaining allowance is zero",
+                "path": "::teardown::account 6: remaining allowance is zero"
+              },
+              {
+                "name": "account 6: account usage equals sum of user usage",
+                "path": "::teardown::account 6: account usage equals sum of user usage",
+                "id": "2956109e93f98dc4f82b85dd867503f2",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "fails": 0,
+                "name": "account 6: daily totals match monthly totals",
+                "path": "::teardown::account 6: daily totals match monthly totals",
+                "id": "3d952f30bdfd7ea95622af6b6e8d9f0b",
+                "passes": 1
+              },
+              {
+                "name": "account 6: every operation has one history record",
+                "path": "::teardown::account 6: every operation has one history record",
+                "id": "7641f0e53b3e85a20a241004e9a87ec1",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "name": "account 6: accepted history matches consumption",
+                "path": "::teardown::account 6: accepted history matches consumption",
+                "id": "7e0ceb6701700faf57088f5a695eafd2",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "name": "account 7: all ten users are included",
+                "path": "::teardown::account 7: all ten users are included",
+                "id": "08b90d0c43bed4384c681b4327ac9a56",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "name": "account 7: account usage equals allowance",
+                "path": "::teardown::account 7: account usage equals allowance",
+                "id": "8d1a42d3966ba6e6691a9e68ea2d6719",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "path": "::teardown::account 7: remaining allowance is zero",
+                "id": "5fae70beadb5745df6bde7e3058dd7cb",
+                "passes": 1,
+                "fails": 0,
+                "name": "account 7: remaining allowance is zero"
+              },
+              {
+                "fails": 0,
+                "name": "account 7: account usage equals sum of user usage",
+                "path": "::teardown::account 7: account usage equals sum of user usage",
+                "id": "828228441226f7587c3030143ef5bacf",
+                "passes": 1
+              },
+              {
+                "name": "account 7: daily totals match monthly totals",
+                "path": "::teardown::account 7: daily totals match monthly totals",
+                "id": "ffbc71f634840f3d04b7dc5e41ebcfe5",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "name": "account 7: every operation has one history record",
+                "path": "::teardown::account 7: every operation has one history record",
+                "id": "42b5eccc590d1c79694162ed4ec9b049",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "path": "::teardown::account 7: accepted history matches consumption",
+                "id": "959c58c0b1686bcfa3cedbe38cf127f9",
+                "passes": 1,
+                "fails": 0,
+                "name": "account 7: accepted history matches consumption"
+              },
+              {
+                "path": "::teardown::account 8: all ten users are included",
+                "id": "893be67f33b86d17b540afcc8ec2b7c4",
+                "passes": 1,
+                "fails": 0,
+                "name": "account 8: all ten users are included"
+              },
+              {
+                "name": "account 8: account usage equals allowance",
+                "path": "::teardown::account 8: account usage equals allowance",
+                "id": "76ece9a0731195a19005d6e5ee82e22c",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "name": "account 8: remaining allowance is zero",
+                "path": "::teardown::account 8: remaining allowance is zero",
+                "id": "487939c87b66694495a45b209f026b4a",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "passes": 1,
+                "fails": 0,
+                "name": "account 8: account usage equals sum of user usage",
+                "path": "::teardown::account 8: account usage equals sum of user usage",
+                "id": "ba3453a5882b8a5fb6cffb71710367a2"
+              },
+              {
+                "id": "f320780ff0021c8bd8b705e2f3a55959",
+                "passes": 1,
+                "fails": 0,
+                "name": "account 8: daily totals match monthly totals",
+                "path": "::teardown::account 8: daily totals match monthly totals"
+              },
+              {
+                "path": "::teardown::account 8: every operation has one history record",
+                "id": "66686952f86744c53c7763968dfa5e0f",
+                "passes": 1,
+                "fails": 0,
+                "name": "account 8: every operation has one history record"
+              },
+              {
+                "name": "account 8: accepted history matches consumption",
+                "path": "::teardown::account 8: accepted history matches consumption",
+                "id": "d5d5ad6860db6f1a7a2ae4b372aba1be",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "id": "96ec6cde09d77faa471a8d355ed25ed4",
+                "passes": 1,
+                "fails": 0,
+                "name": "account 9: all ten users are included",
+                "path": "::teardown::account 9: all ten users are included"
+              },
+              {
+                "fails": 0,
+                "name": "account 9: account usage equals allowance",
+                "path": "::teardown::account 9: account usage equals allowance",
+                "id": "60024c319c6dba7c6be9d769f6df9609",
+                "passes": 1
+              },
+              {
+                "name": "account 9: remaining allowance is zero",
+                "path": "::teardown::account 9: remaining allowance is zero",
+                "id": "bb2ded10b902e43b987e08f7c2938cdc",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "name": "account 9: account usage equals sum of user usage",
+                "path": "::teardown::account 9: account usage equals sum of user usage",
+                "id": "843dfcb7de0b452d25e15b1f394f8098",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "name": "account 9: daily totals match monthly totals",
+                "path": "::teardown::account 9: daily totals match monthly totals",
+                "id": "2829f8f8b2e69905343afe2ff1945287",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "name": "account 9: every operation has one history record",
+                "path": "::teardown::account 9: every operation has one history record",
+                "id": "0106b3dec61f54a4b0e2110a3bb717d3",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "fails": 0,
+                "name": "account 9: accepted history matches consumption",
+                "path": "::teardown::account 9: accepted history matches consumption",
+                "id": "de9f281ba7d938962a73b73ff5bdd7ef",
+                "passes": 1
+              }
+            ],
+          "name": "teardown",
+          "path": "::teardown",
+          "id": "a8a9942382e8ffe2e56ef29e664b8229"
+        }
+      ],
+      "checks": [
+        {
+          "fails": 0,
+          "name": "decision is valid",
+          "path": "::decision is valid",
+          "id": "2732a69411a2fff63b3b4eb3115884cd",
+          "passes": 3000
+        },
+        {
+          "name": "rejections identify the account monthly limit",
+          "path": "::rejections identify the account monthly limit",
+          "id": "25f5635f52361903c5cc066609f08395",
+          "passes": 3000,
+          "fails": 0
+        }
+      ]
+    },
+    "options": {
+      "summaryTrendStats": [
+        "avg",
+        "min",
+        "med",
+        "max",
+        "p(90)",
+        "p(95)"
+      ],
+      "summaryTimeUnit": "",
+      "noColor": false
+    },
+    "state": {
+      "isStdOutTTY": true,
+      "isStdErrTTY": true,
+      "testRunDurationMs": 37008.74138
+    },
+    "metrics": {
+      "http_req_duration{expected_response:true}": {
+        "contains": "time",
+        "values": {
+          "p(90)": 741.0370281999997,
+          "p(95)": 940.511806799999,
+          "avg": 486.5482375170359,
+          "min": 3.156012,
+          "med": 437.668533,
+          "max": 2615.315673
+        },
+        "type": "trend"
+      },
+      "http_reqs": {
+        "type": "counter",
+        "contains": "default",
+        "values": {
+          "count": 3170,
+          "rate": 85.6554392771949
+        }
+      },
+      "data_received": {
+        "type": "counter",
+        "contains": "data",
+        "values": {
+          "count": 2651840,
+          "rate": 71654.42274221973
+        }
+      },
+      "iterations": {
+        "type": "counter",
+        "contains": "default",
+        "values": {
+          "count": 3000,
+          "rate": 81.0619299153264
+        }
+      },
+      "vus": {
+        "values": {
+          "value": 0,
+          "min": 0,
+          "max": 50
+        },
+        "type": "gauge",
+        "contains": "default"
+      },
+      "iteration_duration": {
+        "values": {
+          "med": 450.8964975,
+          "max": 2663.761162,
+          "p(90)": 753.9547194999999,
+          "p(95)": 959.9204569999998,
+          "avg": 513.2315263686677,
+          "min": 77.257975
+        },
+        "type": "trend",
+        "contains": "time"
+      },
+      "checks": {
+        "type": "rate",
+        "contains": "default",
+        "values": {
+          "rate": 1,
+          "passes": 6070,
+          "fails": 0
+        },
+        "thresholds": {
+          "rate==1": {
+            "ok": true
+          }
+        }
+      },
+      "http_req_duration{endpoint:consume}": {
+        "type": "trend",
+        "contains": "time",
+        "values": {
+          "max": 2615.315673,
+          "p(90)": 753.0404589999999,
+          "p(95)": 959.6654219999999,
+          "avg": 512.0996810263342,
+          "min": 75.484973,
+          "med": 450.534855
+        },
+        "thresholds": {
+          "p(95)<2000": {
+            "ok": true
+          }
+        }
+      },
+      "http_req_waiting": {
+        "values": {
+          "avg": 486.39293357602514,
+          "min": 3.091084,
+          "med": 437.51589349999995,
+          "max": 2615.177872,
+          "p(90)": 740.9550388999996,
+          "p(95)": 940.393247949999
+        },
+        "type": "trend",
+        "contains": "time"
+      },
+      "accepted_operations": {
+        "type": "counter",
+        "contains": "default",
+        "values": {
+          "rate": 40.5309649576632,
+          "count": 1500
+        },
+        "thresholds": {
+          "count==1500": {
+            "ok": true
+          }
+        }
+      },
+      "http_req_tls_handshaking": {
+        "contains": "time",
+        "values": {
+          "avg": 0,
+          "min": 0,
+          "med": 0,
+          "max": 0,
+          "p(90)": 0,
+          "p(95)": 0
+        },
+        "type": "trend"
+      },
+      "http_req_receiving": {
+        "type": "trend",
+        "contains": "time",
+        "values": {
+          "avg": 0.1000495072555204,
+          "min": 0.014752,
+          "med": 0.080083,
+          "max": 2.746343,
+          "p(90)": 0.17565309999999998,
+          "p(95)": 0.22604189999999985
+        }
+      },
+      "vus_max": {
+        "type": "gauge",
+        "contains": "default",
+        "values": {
+          "min": 50,
+          "max": 50,
+          "value": 50
+        }
+      },
+      "http_req_sending": {
+        "type": "trend",
+        "contains": "time",
+        "values": {
+          "avg": 0.055254433753943226,
+          "min": 0.006609,
+          "med": 0.033683000000000005,
+          "max": 6.525457,
+          "p(90)": 0.07910429999999997,
+          "p(95)": 0.11692734999999972
+        }
+      },
+      "data_sent": {
+        "values": {
+          "count": 851710,
+          "rate": 23013.75210939422
+        },
+        "type": "counter",
+        "contains": "data"
+      },
+      "http_req_failed": {
+        "contains": "default",
+        "values": {
+          "fails": 3170,
+          "rate": 0,
+          "passes": 0
+        },
+        "thresholds": {
+          "rate==0": {
+            "ok": true
+          }
+        },
+        "type": "rate"
+      },
+      "http_req_duration": {
+        "type": "trend",
+        "contains": "time",
+        "values": {
+          "avg": 486.5482375170359,
+          "min": 3.156012,
+          "med": 437.668533,
+          "max": 2615.315673,
+          "p(90)": 741.0370281999997,
+          "p(95)": 940.511806799999
+        }
+      },
+      "http_req_connecting": {
+        "type": "trend",
+        "contains": "time",
+        "values": {
+          "med": 0,
+          "max": 3.202421,
+          "p(90)": 0,
+          "p(95)": 0,
+          "avg": 0.00831007255520505,
+          "min": 0
+        }
+      },
+      "http_req_blocked": {
+        "contains": "time",
+        "values": {
+          "p(90)": 0.010034,
+          "p(95)": 0.01416704999999999,
+          "avg": 0.03923466687697159,
+          "min": 0.001704,
+          "med": 0.003815,
+          "max": 34.744771
+        },
+        "type": "trend"
+      },
+      "quota_rejected_operations": {
+        "type": "counter",
+        "contains": "default",
+        "values": {
+          "count": 1500,
+          "rate": 40.5309649576632
+        },
+        "thresholds": {
+          "count==1500": {
+            "ok": true
+          }
+        }
+      }
+    }
+  }
+}

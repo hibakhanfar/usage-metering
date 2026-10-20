@@ -2,9 +2,9 @@ services:
   postgres:
     image: postgres:16
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
-      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-usage_metering}
+      POSTGRES_USER: ${POSTGRES_USER:-metering}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-metering_dev_password}
     volumes:
       - metering_data:/var/lib/postgresql/data
     healthcheck:
@@ -19,8 +19,8 @@ services:
     build:
       context: .
     environment:
-      DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
-      ADMIN_TOKEN: ${ADMIN_TOKEN:?ADMIN_TOKEN is required}
+      DATABASE_URL: "postgres://${POSTGRES_USER:-metering}:${POSTGRES_PASSWORD:-metering_dev_password}@postgres:5432/${POSTGRES_DB:-usage_metering}"
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-demo-admin-token}
       PORT: "3000"
       DB_POOL_SIZE: "20"
     ports:
@@ -39,23 +39,25 @@ services:
       retries: 20
       start_period: 15s
     init: true
+
   demo:
     build:
       context: ./example
     environment:
       API_BASE_URL: http://api:3000
-      ADMIN_TOKEN: ${ADMIN_TOKEN:?ADMIN_TOKEN is required}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-demo-admin-token}
     depends_on:
       api:
         condition: service_healthy
     init: true
+
   k6:
     image: grafana/k6:1.0.0
     profiles:
       - performance
     environment:
       API_BASE_URL: http://api:3000
-      ADMIN_TOKEN: ${ADMIN_TOKEN:?ADMIN_TOKEN is required}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-demo-admin-token}
     volumes:
       - ./performance:/scripts:ro
       - ./performance/results:/results
@@ -65,5 +67,6 @@ services:
     command:
       - run
       - /scripts/load.ts
+
 volumes:
   metering_data:
