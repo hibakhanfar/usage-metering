@@ -20,6 +20,7 @@ services:
     build:
       context: .
     environment:
+      CONSUME_BATCH_MAX: ${CONSUME_BATCH_MAX:-50}
       DATABASE_URL: "postgres://${POSTGRES_USER:-metering}:${POSTGRES_PASSWORD:-metering_dev_password}@postgres:5432/${POSTGRES_DB:-usage_metering}"
       ADMIN_TOKEN: ${ADMIN_TOKEN:-demo-admin-token}
       PORT: "3000"
@@ -59,7 +60,6 @@ services:
     environment:
       API_BASE_URL: http://api:3000
       ADMIN_TOKEN: ${ADMIN_TOKEN:-demo-admin-token}
-      CONSUME_BATCH_MAX: ${CONSUME_BATCH_MAX:-50}
     volumes:
       - ./performance:/scripts:ro
       - ./performance/results:/results
