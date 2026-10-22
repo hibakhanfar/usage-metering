@@ -16,3 +16,7 @@ export const pool = new Pool({
 
 export const db = drizzle(pool, { schema });
 export type Db = typeof db;
+
+pool.on("error", (err) => {
+  console.error("Unexpected idle client error", err);
+});

@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:16
+    command: ["postgres", "-c", "synchronous_commit=${PG_SYNC_COMMIT:-on}"]
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-usage_metering}
       POSTGRES_USER: ${POSTGRES_USER:-metering}
@@ -58,6 +59,7 @@ services:
     environment:
       API_BASE_URL: http://api:3000
       ADMIN_TOKEN: ${ADMIN_TOKEN:-demo-admin-token}
+      CONSUME_BATCH_MAX: ${CONSUME_BATCH_MAX:-50}
     volumes:
       - ./performance:/scripts:ro
       - ./performance/results:/results

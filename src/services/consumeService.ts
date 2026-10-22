@@ -4,7 +4,7 @@ import type { Db } from "../db/client";
 import { accounts, plans, requests, usageCounters, users } from "../db/schema";
 import { conflict, notFound } from "../lib/errors";
 
-type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
+export type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 export type Scope = "account" | "user";
 export type RuleName = "max_per_request" | "monthly_allowance" | "daily_allowance";
@@ -285,128 +285,135 @@ function balance(plan: PlanInfo, specs: CounterSpec[], scope: Scope, usedOf: (s:
 
 // ---------- main entry point ----------
 
-export async function consume(db: Db, accountId: string, input: ConsumeInput) {
-  return db.transaction(async (tx) => {
-    const { userId, userPlan, accountPlan, periods } = await loadContext(tx, accountId, input.userId);
-    const specs = buildSpecs(userId, userPlan, accountPlan, periods);
+// Runs one consume decision inside a transaction the CALLER owns (and commits).
+// Used directly by consume() below, and by the batcher, which runs many of these in one transaction.
+export async function consumeInTx(tx: Tx, accountId: string, input: ConsumeInput) {
+  const { userId, userPlan, accountPlan, periods } = await loadContext(tx, accountId, input.userId);
+  const specs = buildSpecs(userId, userPlan, accountPlan, periods);
 
-    // 1) Claim the requestId. The UNIQUE(account_id, request_id) index makes this the single
-    //    point of arbitration: concurrent duplicates wait here, then see the winner's row.
-    const claimed = await tx
-      .insert(requests)
-      .values({
-        accountId,
-        userId,
-        requestId: input.requestId,
-        units: input.units,
-        accepted: false, // placeholder, set below in the same transaction
-        month: periods.month,
-      })
-      .onConflictDoNothing()
-      .returning({ id: requests.id });
+  // 1) Claim the requestId. The UNIQUE(account_id, request_id) index makes this the single
+  //    point of arbitration: concurrent duplicates wait here, then see the winner's row.
+  const claimed = await tx
+    .insert(requests)
+    .values({
+      accountId,
+      userId,
+      requestId: input.requestId,
+      units: input.units,
+      accepted: false, // placeholder, set below in the same transaction
+      month: periods.month,
+    })
+    .onConflictDoNothing()
+    .returning({ id: requests.id });
 
-    // 2) Retry of a request we already decided: return the stored decision, consume nothing.
-    if (claimed.length === 0) {
-      const [existing] = await tx
-        .select()
-        .from(requests)
-        .where(and(eq(requests.accountId, accountId), eq(requests.requestId, input.requestId)));
-      if (!existing) {
-        throw new Error("requestId conflict but no stored request found");
-      }
-      if (existing.userId !== userId || existing.units !== input.units) {
-        throw conflict(`requestId "${input.requestId}" was already used with different parameters`);
-      }
-      const usedOf = await readUsage(tx, accountId, userId, periods);
-      return {
-        requestId: input.requestId,
-        userId: input.userId,
-        units: input.units,
-        accepted: existing.accepted,
-        replayed: true,
-        rejectedBy: existing.rejectedBy,
-        rule: existing.rejectedRule,
-        violations: existing.violations ? (JSON.parse(existing.violations) as Violation[]) : [],
-        user: balance(userPlan, specs, "user", usedOf),
-        account: balance(accountPlan, specs, "account", usedOf),
-      };
+  // 2) Retry of a request we already decided: return the stored decision, consume nothing.
+  if (claimed.length === 0) {
+    const [existing] = await tx
+      .select()
+      .from(requests)
+      .where(and(eq(requests.accountId, accountId), eq(requests.requestId, input.requestId)));
+    if (!existing) {
+      throw new Error("requestId conflict but no stored request found");
     }
-    const claimId = claimed[0]!.id;
-
-    // 3) Per-request limits: a plain comparison, no counters touched.
-    const violations: Violation[] = [];
-    if (userPlan.maxPerRequest !== null && input.units > userPlan.maxPerRequest) {
-      violations.push({ scope: "user", rule: "max_per_request", limit: userPlan.maxPerRequest, requested: input.units });
+    if (existing.userId !== userId || existing.units !== input.units) {
+      throw conflict(`requestId "${input.requestId}" was already used with different parameters`);
     }
-    if (accountPlan.maxPerRequest !== null && input.units > accountPlan.maxPerRequest) {
-      violations.push({ scope: "account", rule: "max_per_request", limit: accountPlan.maxPerRequest, requested: input.units });
-    }
-
-    // 4) Monthly + daily allowances: one all-or-nothing statement (see applyIncrements).
-    let usedOf: (s: CounterSpec) => number;
-    if (violations.length === 0) {
-      const { ids, used } = await counterIds(tx, accountId, specs);
-
-      // Usage only ever grows inside a period. So if the COMMITTED usage already does not fit this
-      // request, it can never fit later: reject right away, WITHOUT locking any counter row.
-      // This keeps rejections from queueing behind the shared account row once it is exhausted.
-      specs.forEach((spec, i) => {
-        if (spec.limit !== null && used[i]! + input.units > spec.limit) {
-          violations.push({ scope: spec.scope, rule: spec.rule, limit: spec.limit, used: used[i]!, requested: input.units });
-        }
-      });
-
-      if (violations.length > 0) {
-        usedOf = (spec) => used[specs.indexOf(spec)]!;
-      } else {
-        // Everything looks like it fits: lock and re-check atomically (the committed view may be stale).
-        const applied = await applyIncrements(tx, specs, ids, input.units, claimId);
-        usedOf = (spec) => applied.used[specs.indexOf(spec)]!;
-
-        if (!applied.ok) {
-          // Report every allowance that cannot fit this request, in the fixed order of `specs`.
-          specs.forEach((spec, i) => {
-            const before = applied.before[i]!;
-            if (spec.limit !== null && before + input.units > spec.limit) {
-              violations.push({ scope: spec.scope, rule: spec.rule, limit: spec.limit, used: before, requested: input.units });
-            }
-          });
-          if (violations.length === 0) {
-            throw new Error("increment rejected but no violated allowance found");
-          }
-        }
-      }
-    } else {
-      usedOf = await readUsage(tx, accountId, userId, periods);
-    }
-
-    const accepted = violations.length === 0;
-    const primary = violations[0];
-
-    // An accepted request was already marked accepted inside applyIncrements (no extra round trip).
-    if (!accepted) {
-      await tx
-        .update(requests)
-        .set({
-          accepted: false,
-          rejectedBy: primary!.scope,
-          rejectedRule: primary!.rule,
-          violations: JSON.stringify(violations),
-        })
-        .where(eq(requests.id, claimId));
-    }
-
+    const usedOf = await readUsage(tx, accountId, userId, periods);
     return {
       requestId: input.requestId,
       userId: input.userId,
       units: input.units,
-      accepted,
-      replayed: false,
-      rejectedBy: primary?.scope ?? null,
-      rule: primary?.rule ?? null,
-      violations,
+      accepted: existing.accepted,
+      replayed: true,
+      rejectedBy: existing.rejectedBy,
+      rule: existing.rejectedRule,
+      violations: existing.violations ? (JSON.parse(existing.violations) as Violation[]) : [],
       user: balance(userPlan, specs, "user", usedOf),
       account: balance(accountPlan, specs, "account", usedOf),
     };
-  });
+  }
+  const claimId = claimed[0]!.id;
+
+  // 3) Per-request limits: a plain comparison, no counters touched.
+  const violations: Violation[] = [];
+  if (userPlan.maxPerRequest !== null && input.units > userPlan.maxPerRequest) {
+    violations.push({ scope: "user", rule: "max_per_request", limit: userPlan.maxPerRequest, requested: input.units });
+  }
+  if (accountPlan.maxPerRequest !== null && input.units > accountPlan.maxPerRequest) {
+    violations.push({ scope: "account", rule: "max_per_request", limit: accountPlan.maxPerRequest, requested: input.units });
+  }
+
+  // 4) Monthly + daily allowances: one all-or-nothing statement (see applyIncrements).
+  let usedOf: (s: CounterSpec) => number;
+  if (violations.length === 0) {
+    const { ids, used } = await counterIds(tx, accountId, specs);
+
+    // Usage only ever grows inside a period. So if the COMMITTED usage already does not fit this
+    // request, it can never fit later: reject right away, WITHOUT locking any counter row.
+    // This keeps rejections from queueing behind the shared account row once it is exhausted.
+    specs.forEach((spec, i) => {
+      if (spec.limit !== null && used[i]! + input.units > spec.limit) {
+        violations.push({ scope: spec.scope, rule: spec.rule, limit: spec.limit, used: used[i]!, requested: input.units });
+      }
+    });
+
+    if (violations.length > 0) {
+      usedOf = (spec) => used[specs.indexOf(spec)]!;
+    } else {
+      // Everything looks like it fits: lock and re-check atomically (the committed view may be stale).
+      const applied = await applyIncrements(tx, specs, ids, input.units, claimId);
+      usedOf = (spec) => applied.used[specs.indexOf(spec)]!;
+
+      if (!applied.ok) {
+        // Report every allowance that cannot fit this request, in the fixed order of `specs`.
+        specs.forEach((spec, i) => {
+          const before = applied.before[i]!;
+          if (spec.limit !== null && before + input.units > spec.limit) {
+            violations.push({ scope: spec.scope, rule: spec.rule, limit: spec.limit, used: before, requested: input.units });
+          }
+        });
+        if (violations.length === 0) {
+          throw new Error("increment rejected but no violated allowance found");
+        }
+      }
+    }
+  } else {
+    usedOf = await readUsage(tx, accountId, userId, periods);
+  }
+
+  const accepted = violations.length === 0;
+  const primary = violations[0];
+
+  // An accepted request was already marked accepted inside applyIncrements (no extra round trip).
+  if (!accepted) {
+    await tx
+      .update(requests)
+      .set({
+        accepted: false,
+        rejectedBy: primary!.scope,
+        rejectedRule: primary!.rule,
+        violations: JSON.stringify(violations),
+      })
+      .where(eq(requests.id, claimId));
+  }
+
+  return {
+    requestId: input.requestId,
+    userId: input.userId,
+    units: input.units,
+    accepted,
+    replayed: false,
+    rejectedBy: primary?.scope ?? null,
+    rule: primary?.rule ?? null,
+    violations,
+    user: balance(userPlan, specs, "user", usedOf),
+    account: balance(accountPlan, specs, "account", usedOf),
+  };
+}
+
+export type ConsumeResult = Awaited<ReturnType<typeof consumeInTx>>;
+
+// One request, one transaction. Kept for tests and for callers that do not need batching.
+export function consume(db: Db, accountId: string, input: ConsumeInput): Promise<ConsumeResult> {
+  return db.transaction((tx) => consumeInTx(tx, accountId, input));
 }
