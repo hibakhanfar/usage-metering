@@ -272,4 +272,59 @@ describe("Consume batcher", () => {
       ),
     ).toHaveLength(1);
   });
+  it("rejects excess requests and accepts again after capacity is released", async () => {
+  const { account } = await createFixture();
+
+  // Only one pending or active request is allowed in this test.
+  const batcher = new ConsumeBatcher(testDb, 50, 1);
+
+  const first = batcher.consume(account.id, {
+    userId: "ali",
+    units: 1,
+    requestId: "capacity-first",
+  });
+
+  // Called immediately while the first request is still pending.
+  const excess = batcher.consume(account.id, {
+    userId: "sara",
+    units: 1,
+    requestId: "capacity-retry",
+  });
+
+  const results = await Promise.allSettled([first, excess]);
+
+  expect(results[0]).toMatchObject({
+    status: "fulfilled",
+    value: { accepted: true },
+  });
+
+  expect(results[1]).toMatchObject({
+    status: "rejected",
+    reason: {
+      status: 503,
+      code: "service_busy",
+    },
+  });
+
+  const beforeRetry = await storedState(account.id);
+
+  expect(beforeRetry.accountMonthly?.unitsUsed).toBe(1);
+  expect(beforeRetry.history).toHaveLength(1);
+
+  // Reuse the same requestId after capacity becomes available.
+  const retry = await batcher.consume(account.id, {
+    userId: "sara",
+    units: 1,
+    requestId: "capacity-retry",
+  });
+
+  expect(retry.accepted).toBe(true);
+  expect(retry.replayed).toBe(false);
+
+  const afterRetry = await storedState(account.id);
+
+  expect(afterRetry.accountMonthly?.unitsUsed).toBe(2);
+  expect(afterRetry.userMonthlyTotal).toBe(2);
+  expect(afterRetry.history).toHaveLength(2);
+});
 });

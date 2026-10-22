@@ -55,8 +55,24 @@ async function loadContext(tx: Tx, accountId: string, externalUserId: string) {
       userMonthly: userPlan.monthlyAllowance,
       userDaily: userPlan.dailyAllowance,
       userMax: userPlan.maxPerRequest,
-      today: sql<string>`to_char(now() at time zone 'utc', 'YYYY-MM-DD')`,
-      month: sql<string>`to_char(date_trunc('month', now() at time zone 'utc'), 'YYYY-MM-DD')`,
+      processedAt: sql<string>`statement_timestamp()::text`,
+
+today: sql<string>`
+  to_char(
+    statement_timestamp() at time zone 'utc',
+    'YYYY-MM-DD'
+  )
+`,
+
+month: sql<string>`
+  to_char(
+    date_trunc(
+      'month',
+      statement_timestamp() at time zone 'utc'
+    ),
+    'YYYY-MM-DD'
+  )
+`,
     })
     .from(accounts)
     .innerJoin(plans, eq(accounts.accountPlanId, plans.id))
@@ -87,6 +103,7 @@ async function loadContext(tx: Tx, accountId: string, externalUserId: string) {
       dailyAllowance: row.accountDaily,
       maxPerRequest: row.accountMax,
     } as PlanInfo,
+    processedAt: new Date(row.processedAt),
     periods: { today: row.today, month: row.month },
   };
 }
@@ -288,8 +305,13 @@ function balance(plan: PlanInfo, specs: CounterSpec[], scope: Scope, usedOf: (s:
 // Runs one consume decision inside a transaction the CALLER owns (and commits).
 // Used directly by consume() below, and by the batcher, which runs many of these in one transaction.
 export async function consumeInTx(tx: Tx, accountId: string, input: ConsumeInput) {
-  const { userId, userPlan, accountPlan, periods } = await loadContext(tx, accountId, input.userId);
-  const specs = buildSpecs(userId, userPlan, accountPlan, periods);
+const {
+  userId,
+  userPlan,
+  accountPlan,
+  periods,
+  processedAt,
+} = await loadContext(tx, accountId, input.userId);  const specs = buildSpecs(userId, userPlan, accountPlan, periods);
 
   // 1) Claim the requestId. The UNIQUE(account_id, request_id) index makes this the single
   //    point of arbitration: concurrent duplicates wait here, then see the winner's row.
@@ -302,6 +324,7 @@ export async function consumeInTx(tx: Tx, accountId: string, input: ConsumeInput
       units: input.units,
       accepted: false, // placeholder, set below in the same transaction
       month: periods.month,
+      createdAt: processedAt,
     })
     .onConflictDoNothing()
     .returning({ id: requests.id });
@@ -413,7 +436,6 @@ export async function consumeInTx(tx: Tx, accountId: string, input: ConsumeInput
 
 export type ConsumeResult = Awaited<ReturnType<typeof consumeInTx>>;
 
-// One request, one transaction. Kept for tests and for callers that do not need batching.
 export function consume(db: Db, accountId: string, input: ConsumeInput): Promise<ConsumeResult> {
   return db.transaction((tx) => consumeInTx(tx, accountId, input));
 }

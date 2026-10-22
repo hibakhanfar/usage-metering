@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import type { Db } from "../db/client";
 import { consumeInTx, type ConsumeInput, type ConsumeResult } from "./consumeService";
+import { AppError } from "../lib/errors";
 
 type Job = {
   input: ConsumeInput;
@@ -30,27 +31,52 @@ type Outcome = { ok: true; value: ConsumeResult } | { ok: false; error: unknown 
 export class ConsumeBatcher {
   private queues = new Map<string, Job[]>();
   private draining = new Set<string>();
+  private pendingCount = 0;
 
   constructor(
-    private db: Db,
-    private maxBatch = 50,
-  ) {
-    if (!Number.isInteger(maxBatch) || maxBatch < 1) {
-      throw new Error("maxBatch must be a positive integer");
-    }
+  private db: Db,
+  private maxBatch = 50,
+  private maxPending = 1000,
+) {
+  if (!Number.isSafeInteger(maxBatch) || maxBatch < 1) {
+    throw new Error("maxBatch must be a positive safe integer");
   }
 
-  consume(accountId: string, input: ConsumeInput): Promise<ConsumeResult> {
-    return new Promise<ConsumeResult>((resolve, reject) => {
-      let queue = this.queues.get(accountId);
-      if (!queue) {
-        queue = [];
-        this.queues.set(accountId, queue);
-      }
-      queue.push({ input, resolve, reject });
-      void this.drain(accountId);
-    });
+  if (!Number.isSafeInteger(maxPending) || maxPending < 1) {
+    throw new Error("maxPending must be a positive safe integer");
   }
+}
+
+consume(
+  accountId: string,
+  input: ConsumeInput,
+): Promise<ConsumeResult> {
+  if (this.pendingCount >= this.maxPending) {
+    return Promise.reject(
+      new AppError(
+        503,
+        "service_busy",
+        "Too many pending consume requests; retry with the same requestId",
+      ),
+    );
+  }
+
+  this.pendingCount++;
+
+  return new Promise<ConsumeResult>((resolve, reject) => {
+    let queue = this.queues.get(accountId);
+
+    if (!queue) {
+      queue = [];
+      this.queues.set(accountId, queue);
+    }
+
+    queue.push({ input, resolve, reject });
+    void this.drain(accountId);
+  }).finally(() => {
+    this.pendingCount--;
+  });
+}
 
   // At most one batch per account is in flight in this process; different accounts run in parallel.
   private async drain(accountId: string): Promise<void> {

@@ -15,7 +15,11 @@ const consumeBody = z
 export function consumeRouter(db: Db) {
   const router = Router();
   // CONSUME_BATCH_MAX=1 turns batching off (one transaction per request).
-  const batcher = new ConsumeBatcher(db, Number(process.env.CONSUME_BATCH_MAX ?? 50));
+const batcher = new ConsumeBatcher(
+  db,
+  Number(process.env.CONSUME_BATCH_MAX ?? 50),
+  Number(process.env.CONSUME_MAX_PENDING ?? 1000),
+);
   router.use(apiKeyAuth(db));
 
   router.post("/", async (req, res, next) => {
