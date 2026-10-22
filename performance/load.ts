@@ -113,7 +113,7 @@ export const options: Options = {
   thresholds: {
     http_req_failed: ["rate==0"],
     checks: ["rate==1"],
-    "http_req_duration{endpoint:consume}": ["p(95)<2000"],
+    "http_req_duration{endpoint:consume}": [`p(95)<${Number(__ENV.PERF_P95_MS || 2000)}`],
     accepted_operations: [`count==${TOTAL_ACCEPTED}`],
     quota_rejected_operations: [`count==${TOTAL - TOTAL_ACCEPTED}`],
   },
