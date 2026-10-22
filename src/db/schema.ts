@@ -49,7 +49,6 @@ export const users = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     accountId: uuid("account_id").notNull().references(() => accounts.id),
-    // the caller's own identifier for this user
     externalId: text("external_id").notNull(),
     userPlanId: uuid("user_plan_id").notNull().references(() => plans.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -57,14 +56,12 @@ export const users = pgTable(
   (t) => [uniqueIndex("users_account_external_uq").on(t.accountId, t.externalId)],
 );
 
-// ---------- usage counters ----------
-// One row per (account | account+user) per period. New period = new row = zero usage.
+
 export const usageCounters = pgTable(
   "usage_counters",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     accountId: uuid("account_id").notNull().references(() => accounts.id),
-    // NULL = the account-level (shared) counter
     userId: uuid("user_id").references(() => users.id),
     periodType: periodType("period_type").notNull(),
     periodStart: date("period_start", { mode: "string" }).notNull(),
@@ -90,12 +87,10 @@ export const requests = pgTable(
     requestId: text("request_id").notNull(),
     units: bigint("units", { mode: "number" }).notNull(),
     accepted: boolean("accepted").notNull(),
-    // for rejections: which level and which rules failed
     rejectedBy: scopeType("rejected_by"),
     rejectedRule: text("rejected_rule"),
-    violations: text("violations"), // JSON string of all failed rules
+    violations: text("violations"), 
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    // UTC month this request belongs to (first day of the month)
     month: date("month", { mode: "string" }).notNull(),
   },
   (t) => [
