@@ -21,14 +21,14 @@ export const plans = pgTable(
     maxPerRequest: bigint("max_per_request", { mode: "number" }),
     isPredefined: boolean("is_predefined").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),//here defaultNow() doesn't update the value automatically on update, so we need to handle that in the application
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex("plans_account_kind_name_uq").on(
       sql`coalesce(${t.accountId}, '00000000-0000-0000-0000-000000000000')`,
       t.kind,
       t.name,
-    ),//ex: It is forbidden to create two global plans of type `user` with the name `Basic`.
+    ),
     check("plans_monthly_nonneg", sql`${t.monthlyAllowance} IS NULL OR ${t.monthlyAllowance} >= 0`),
     check("plans_daily_nonneg", sql`${t.dailyAllowance} IS NULL OR ${t.dailyAllowance} >= 0`),
     check("plans_max_nonneg", sql`${t.maxPerRequest} IS NULL OR ${t.maxPerRequest} >= 0`),

@@ -11,7 +11,7 @@ const createUserBody = z.object({
 
 export function usersRouter(db: Db) {
   const router = Router();
-  router.use(apiKeyAuth(db)); // every route below requires a valid x-api-key
+  router.use(apiKeyAuth(db)); 
 
   router.post("/", async (req, res, next) => {
     try {

@@ -78,7 +78,6 @@ consume(
   });
 }
 
-  // At most one batch per account is in flight in this process; different accounts run in parallel.
   private async drain(accountId: string): Promise<void> {
     if (this.draining.has(accountId)) return;
     this.draining.add(accountId);
@@ -100,14 +99,10 @@ consume(
     const outcomes: Outcome[] = [];
     try {
       await this.db.transaction(async (tx) => {
-        // One batch per account at a time, ACROSS service instances too (released at commit).
-        // Without it, two batches of the same account could each hold some counter rows and wait for the
-        // other's: inside a batch the locks of several requests pile up, so the user-then-account order
-        // that makes single requests deadlock-free is no longer global.
+
         await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${accountId}, 0))`);
         for (const job of jobs) {
           try {
-            // nested transaction = SAVEPOINT: a failure rolls back this request only
             const value = await tx.transaction((sp) => consumeInTx(sp, accountId, job.input));
             outcomes.push({ ok: true, value });
           } catch (error) {
@@ -116,7 +111,6 @@ consume(
         }
       });
     } catch (error) {
-      // connection or COMMIT failure: nothing was persisted, nobody may be told they succeeded
       for (const job of jobs) job.reject(error);
       return;
     }

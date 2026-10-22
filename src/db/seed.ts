@@ -26,7 +26,7 @@ export async function seedPlans(db: Db): Promise<void> {
       .limit(1);
 
     if (existing.length > 0) {
-      continue; // already seeded
+      continue; 
     }
 
     await db

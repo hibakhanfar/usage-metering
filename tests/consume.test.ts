@@ -122,7 +122,6 @@ afterAll(async () => {
     expect(result.user.daily.used).toBe(10);
     expect(result.account.daily.used).toBe(10);
 
-    // Verify persisted counters, not just the response.
     const counters = await testDb
       .select()
       .from(usageCounters)
@@ -252,7 +251,6 @@ afterAll(async () => {
 
   await consume(testDb, account.id, input);
 
-  // Same requestId, different units.
   await expect(
     consume(testDb, account.id, {
       ...input,
@@ -263,7 +261,6 @@ afterAll(async () => {
     code: "conflict",
   });
 
-  // Same requestId, different user.
   await expect(
     consume(testDb, account.id, {
       ...input,
@@ -511,7 +508,6 @@ it("rejects after lowering an allowance below usage and allows consumption after
   expect(accepted.user.monthly.used).toBe(30);
   expect(accepted.user.monthly.remaining).toBe(20);
 
-  // The old rejection must remain unchanged.
   const history = await testDb
     .select()
     .from(requests)

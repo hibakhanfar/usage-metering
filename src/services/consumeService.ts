@@ -29,17 +29,13 @@ type CounterSpec = {
   scope: Scope;
   period: "month" | "day";
   periodStart: string;
-  userId: string | null; // null = the account-level (shared) counter
-  limit: number | null; // null = unlimited
+  userId: string | null;
+  limit: number | null;
   rule: RuleName;
 };
 
 export type ConsumeInput = { userId: string; units: number; requestId: string };
 
-// ---------- helpers ----------
-
-// One round trip for everything we need before touching any counter:
-// the account's plan, the user (and their plan), and the current UTC day/month from the database clock.
 async function loadContext(tx: Tx, accountId: string, externalUserId: string) {
   const userPlan = alias(plans, "user_plan");
   const [row] = await tx
@@ -108,9 +104,6 @@ month: sql<string>`
   };
 }
 
-// Order matters: this is both the locking order and the order rejection reasons are reported in.
-// User counters first, shared account counters last (the account rows are the hot spot,
-// so we hold their locks for as short a time as possible).
 function buildSpecs(
   userId: string,
   userPlan: Limits,
@@ -133,8 +126,7 @@ function counterWhere(accountId: string, spec: CounterSpec) {
     eq(usageCounters.periodStart, spec.periodStart),
   );
 }
-// Returns the id of each counter row, in the same order as `specs`
-// (creating the ones that do not exist yet: first request of a user / day / month).
+
 async function counterIds(
   tx: Tx,
   accountId: string,
@@ -172,7 +164,7 @@ async function counterIds(
           unitsUsed: 0,
         })),
       )
-      .onConflictDoNothing(); // a concurrent request may have created them first
+      .onConflictDoNothing(); 
     rows = await find();
   }
 
@@ -188,12 +180,6 @@ async function counterIds(
 
 type Applied = { ok: boolean; before: number[]; used: number[] };
 
-// The heart of the service, in ONE statement and ONE round trip:
-//   1. lock the counter rows (user rows first, shared account rows last: a fixed order, so no deadlocks)
-//   2. check every limit against the locked, up-to-date values
-//   3. if ALL fit, add the units to ALL of them (and mark the request accepted); otherwise change nothing
-// Nothing can slip in between the check and the increment because the rows are locked until commit,
-// and a rejection leaves no partial increments because the update is all-or-nothing.
 async function applyIncrements(
   tx: Tx,
   specs: CounterSpec[],
@@ -286,7 +272,7 @@ async function readUsage(tx: Tx, accountId: string, userId: string, p: { today: 
 const line = (limit: number | null, used: number) => ({
   limit,
   used,
-  remaining: limit === null ? null : Math.max(0, limit - used), // never negative
+  remaining: limit === null ? null : Math.max(0, limit - used), 
 });
 
 function balance(plan: PlanInfo, specs: CounterSpec[], scope: Scope, usedOf: (s: CounterSpec) => number) {
@@ -300,10 +286,6 @@ function balance(plan: PlanInfo, specs: CounterSpec[], scope: Scope, usedOf: (s:
   };
 }
 
-// ---------- main entry point ----------
-
-// Runs one consume decision inside a transaction the CALLER owns (and commits).
-// Used directly by consume() below, and by the batcher, which runs many of these in one transaction.
 export async function consumeInTx(tx: Tx, accountId: string, input: ConsumeInput) {
 const {
   userId,
@@ -313,8 +295,6 @@ const {
   processedAt,
 } = await loadContext(tx, accountId, input.userId);  const specs = buildSpecs(userId, userPlan, accountPlan, periods);
 
-  // 1) Claim the requestId. The UNIQUE(account_id, request_id) index makes this the single
-  //    point of arbitration: concurrent duplicates wait here, then see the winner's row.
   const claimed = await tx
     .insert(requests)
     .values({
@@ -322,14 +302,13 @@ const {
       userId,
       requestId: input.requestId,
       units: input.units,
-      accepted: false, // placeholder, set below in the same transaction
+      accepted: false, 
       month: periods.month,
       createdAt: processedAt,
     })
     .onConflictDoNothing()
     .returning({ id: requests.id });
 
-  // 2) Retry of a request we already decided: return the stored decision, consume nothing.
   if (claimed.length === 0) {
     const [existing] = await tx
       .select()
@@ -357,7 +336,6 @@ const {
   }
   const claimId = claimed[0]!.id;
 
-  // 3) Per-request limits: a plain comparison, no counters touched.
   const violations: Violation[] = [];
   if (userPlan.maxPerRequest !== null && input.units > userPlan.maxPerRequest) {
     violations.push({ scope: "user", rule: "max_per_request", limit: userPlan.maxPerRequest, requested: input.units });
@@ -366,14 +344,10 @@ const {
     violations.push({ scope: "account", rule: "max_per_request", limit: accountPlan.maxPerRequest, requested: input.units });
   }
 
-  // 4) Monthly + daily allowances: one all-or-nothing statement (see applyIncrements).
   let usedOf: (s: CounterSpec) => number;
   if (violations.length === 0) {
     const { ids, used } = await counterIds(tx, accountId, specs);
 
-    // Usage only ever grows inside a period. So if the COMMITTED usage already does not fit this
-    // request, it can never fit later: reject right away, WITHOUT locking any counter row.
-    // This keeps rejections from queueing behind the shared account row once it is exhausted.
     specs.forEach((spec, i) => {
       if (spec.limit !== null && used[i]! + input.units > spec.limit) {
         violations.push({ scope: spec.scope, rule: spec.rule, limit: spec.limit, used: used[i]!, requested: input.units });
@@ -383,12 +357,10 @@ const {
     if (violations.length > 0) {
       usedOf = (spec) => used[specs.indexOf(spec)]!;
     } else {
-      // Everything looks like it fits: lock and re-check atomically (the committed view may be stale).
       const applied = await applyIncrements(tx, specs, ids, input.units, claimId);
       usedOf = (spec) => applied.used[specs.indexOf(spec)]!;
 
       if (!applied.ok) {
-        // Report every allowance that cannot fit this request, in the fixed order of `specs`.
         specs.forEach((spec, i) => {
           const before = applied.before[i]!;
           if (spec.limit !== null && before + input.units > spec.limit) {
@@ -407,7 +379,6 @@ const {
   const accepted = violations.length === 0;
   const primary = violations[0];
 
-  // An accepted request was already marked accepted inside applyIncrements (no extra round trip).
   if (!accepted) {
     await tx
       .update(requests)

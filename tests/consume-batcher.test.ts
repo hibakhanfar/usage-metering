@@ -275,7 +275,6 @@ describe("Consume batcher", () => {
   it("rejects excess requests and accepts again after capacity is released", async () => {
   const { account } = await createFixture();
 
-  // Only one pending or active request is allowed in this test.
   const batcher = new ConsumeBatcher(testDb, 50, 1);
 
   const first = batcher.consume(account.id, {
@@ -284,7 +283,6 @@ describe("Consume batcher", () => {
     requestId: "capacity-first",
   });
 
-  // Called immediately while the first request is still pending.
   const excess = batcher.consume(account.id, {
     userId: "sara",
     units: 1,
@@ -311,7 +309,6 @@ describe("Consume batcher", () => {
   expect(beforeRetry.accountMonthly?.unitsUsed).toBe(1);
   expect(beforeRetry.history).toHaveLength(1);
 
-  // Reuse the same requestId after capacity becomes available.
   const retry = await batcher.consume(account.id, {
     userId: "sara",
     units: 1,

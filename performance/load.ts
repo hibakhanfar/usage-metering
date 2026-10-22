@@ -66,8 +66,6 @@ type SummaryData = {
 const BASE_URL = __ENV.API_BASE_URL || "http://api:3000";
 const TOTAL = Number(__ENV.PERF_REQUESTS || 1000);
 const VUS = Number(__ENV.PERF_VUS || 10);
-// How many independent accounts share the load. 1 = every request fights for the
-// same shared-allowance row (worst case); N = the load is spread over N accounts.
 const ACCOUNTS = Number(__ENV.PERF_ACCOUNTS || 1);
 const USERS_PER_ACCOUNT = 10;
 
@@ -92,7 +90,6 @@ if (TOTAL % ACCOUNTS !== 0 || TOTAL / ACCOUNTS < 20) {
 }
 
 const PER_ACCOUNT = TOTAL / ACCOUNTS;
-// Per account: half of its requests fit in the allowance, half must be rejected.
 const ALLOWANCE = Math.floor(PER_ACCOUNT / 2);
 const TOTAL_ACCEPTED = ALLOWANCE * ACCOUNTS;
 
@@ -354,7 +351,6 @@ export function teardown(data: SetupData): void {
 }
 
 export function handleSummary(data: SummaryData): Record<string, string> {
-  // k6 puts setup()'s return value (which contains API keys) into the summary. Drop it.
   const { setup_data: _secrets, ...safeData } = data as SummaryData & {
     setup_data?: unknown;
   };
