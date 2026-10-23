@@ -11,23 +11,7 @@ type Job = {
 
 type Outcome = { ok: true; value: ConsumeResult } | { ok: false; error: unknown };
 
-// Group commit, per account.
-//
-// Why: a COMMIT must wait for the WAL to be flushed to disk (fsync), and Postgres keeps row locks until
-// that flush is done. All accepted requests of one account lock the same shared counter rows, so with
-// one transaction per request they run strictly one after another, each paying a full fsync.
-//
-// How: requests for the same account that arrive while a batch is being processed wait in a queue.
-// When the batch finishes, everything queued is processed in ONE transaction, so ONE fsync is shared
-// by the whole batch. There is no artificial delay: under light load a batch is just one request.
-//
-// Correctness is unchanged:
-//  - every request still goes through consumeInTx (same checks, same row locks, same SQL), so the
-//    database remains the single arbiter, also if several service instances run side by side;
-//  - each request runs in its own SAVEPOINT, so one failing request (unknown user, requestId reused
-//    with different parameters) is rolled back alone and does not affect the others;
-//  - nobody gets an answer before the transaction has committed. If the commit fails, every request
-//    of the batch is rejected with the error, and nothing was persisted.
+
 export class ConsumeBatcher {
   private queues = new Map<string, Job[]>();
   private draining = new Set<string>();
