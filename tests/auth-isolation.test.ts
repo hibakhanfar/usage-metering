@@ -418,8 +418,7 @@ it("keeps previous-day usage separate while preserving monthly usage", async () 
   const yesterday = String(periods.rows[0]?.yesterday);
   const currentMonth = String(periods.rows[0]?.current_month);
 
-  // Existing current-month usage and a separate previous-day counter.
-  // These fixtures test period selection independently.
+
   for (const userId of [null, user.id]) {
     await testDb.insert(usageCounters).values([
       {
