@@ -7,7 +7,7 @@ import {
   it,
 } from "vitest";
 import request from "supertest";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import {
   prepareTestDatabase,
@@ -313,4 +313,199 @@ it("returns consistent usage and filtered history without exposing another accou
   );
   expect(otherUsage.body.users.items[0].monthly.used).toBe(0);
 });
+it("keeps previous-month usage separate and queryable", async () => {
+  const account = await createAccount(testDb, {
+    name: `monthly-test-${randomUUID()}`,
+    planName: "Starter",
+  });
+
+  createdAccountIds.push(account.id);
+
+  const user = await createUser(testDb, account.id, {
+    externalId: "monthly-user",
+  });
+
+  const periods = await testDb.execute(sql`
+    SELECT to_char(
+      date_trunc('month', now() AT TIME ZONE 'UTC')
+        - interval '1 month',
+      'YYYY-MM-DD'
+    ) AS previous_month
+  `);
+
+  const previousMonth = String(periods.rows[0]?.previous_month);
+
+  await testDb.insert(usageCounters).values([
+    {
+      accountId: account.id,
+      userId: null,
+      periodType: "month",
+      periodStart: previousMonth,
+      unitsUsed: 100,
+    },
+    {
+      accountId: account.id,
+      userId: user.id,
+      periodType: "month",
+      periodStart: previousMonth,
+      unitsUsed: 100,
+    },
+  ]);
+
+  const current = await request(app)
+    .get("/usage")
+    .set("x-api-key", account.apiKey);
+
+  expect(current.status).toBe(200);
+  expect(current.body.account.monthly.used).toBe(0);
+  expect(current.body.users.items[0].monthly.used).toBe(0);
+
+  const consumed = await request(app)
+    .post("/consume")
+    .set("x-api-key", account.apiKey)
+    .send({
+      userId: "monthly-user",
+      units: 10,
+      requestId: "new-month-action",
+    });
+
+  expect(consumed.status).toBe(200);
+  expect(consumed.body.accepted).toBe(true);
+  expect(consumed.body.account.monthly.used).toBe(10);
+  expect(consumed.body.user.monthly.used).toBe(10);
+
+  const historical = await request(app)
+    .get("/usage")
+    .query({ month: previousMonth.slice(0, 7) })
+    .set("x-api-key", account.apiKey);
+
+  expect(historical.status).toBe(200);
+  expect(historical.body.current).toBe(false);
+  expect(historical.body.account.monthly).toEqual({
+    used: 100,
+  });
+  expect(historical.body.users.items[0].monthly).toEqual({
+    used: 100,
+  });
+  expect(historical.body.account).not.toHaveProperty("plan");
+  expect(historical.body.account).not.toHaveProperty("daily");
+});
+
+it("keeps previous-day usage separate while preserving monthly usage", async () => {
+  const account = await createAccount(testDb, {
+    name: `daily-test-${randomUUID()}`,
+    planName: "Starter",
+  });
+
+  createdAccountIds.push(account.id);
+
+  const user = await createUser(testDb, account.id, {
+    externalId: "daily-user",
+  });
+
+  const periods = await testDb.execute(sql`
+    SELECT
+      to_char(
+        (now() AT TIME ZONE 'UTC') - interval '1 day',
+        'YYYY-MM-DD'
+      ) AS yesterday,
+      to_char(
+        date_trunc('month', now() AT TIME ZONE 'UTC'),
+        'YYYY-MM-DD'
+      ) AS current_month
+  `);
+
+  const yesterday = String(periods.rows[0]?.yesterday);
+  const currentMonth = String(periods.rows[0]?.current_month);
+
+  // Existing current-month usage and a separate previous-day counter.
+  // These fixtures test period selection independently.
+  for (const userId of [null, user.id]) {
+    await testDb.insert(usageCounters).values([
+      {
+        accountId: account.id,
+        userId,
+        periodType: "month",
+        periodStart: currentMonth,
+        unitsUsed: 40,
+      },
+      {
+        accountId: account.id,
+        userId,
+        periodType: "day",
+        periodStart: yesterday,
+        unitsUsed: 30,
+      },
+    ]);
+  }
+
+  const before = await request(app)
+    .get("/usage")
+    .set("x-api-key", account.apiKey);
+
+  expect(before.status).toBe(200);
+  expect(before.body.account.monthly.used).toBe(40);
+  expect(before.body.account.daily.used).toBe(0);
+  expect(before.body.users.items[0].monthly.used).toBe(40);
+  expect(before.body.users.items[0].daily.used).toBe(0);
+
+  const consumed = await request(app)
+    .post("/consume")
+    .set("x-api-key", account.apiKey)
+    .send({
+      userId: "daily-user",
+      units: 10,
+      requestId: "new-day-action",
+    });
+
+  expect(consumed.status).toBe(200);
+  expect(consumed.body.accepted).toBe(true);
+  expect(consumed.body.account.monthly.used).toBe(50);
+  expect(consumed.body.account.daily.used).toBe(10);
+  expect(consumed.body.user.monthly.used).toBe(50);
+  expect(consumed.body.user.daily.used).toBe(10);
+
+  const stored = await testDb
+    .select()
+    .from(usageCounters)
+    .where(eq(usageCounters.accountId, account.id));
+
+  const previousDayCounters = stored.filter(
+    (counter) =>
+      counter.periodType === "day" &&
+      counter.periodStart === yesterday,
+  );
+
+  expect(previousDayCounters).toHaveLength(2);
+
+  for (const counter of previousDayCounters) {
+    expect(counter.unitsUsed).toBe(30);
+  }
+});
+
+it("rejects future months in usage and request history", async () => {
+  const periods = await testDb.execute(sql`
+    SELECT to_char(
+      date_trunc('month', now() AT TIME ZONE 'UTC')
+        + interval '1 month',
+      'YYYY-MM'
+    ) AS future_month
+  `);
+
+  const futureMonth = String(periods.rows[0]?.future_month);
+
+  for (const endpoint of ["/usage", "/requests"]) {
+    const response = await request(app)
+      .get(endpoint)
+      .query({ month: futureMonth })
+      .set("x-api-key", accountA.apiKey);
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe("bad_request");
+    expect(response.body.message).toBe(
+      "month cannot be in the future",
+    );
+  }
+});
+
 });

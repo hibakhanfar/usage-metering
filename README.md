@@ -195,6 +195,7 @@ Both endpoints default to `limit=20&offset=0`, allow a maximum page size of 100,
 | 401 | Missing or invalid API key / admin token |
 | 404 | Requested entity or accessible plan not found |
 | 409 | Duplicate data or reuse of a request ID with different parameters |
+| 413 | Request body exceeds the allowed size |
 | 503 | Consume queue capacity reached (`service_busy`) |
 | 500 | Unexpected internal failure |
 
@@ -251,16 +252,17 @@ The test helper applies migrations and seeds predefined plans. It rejects databa
 
 `TEST_DATABASE_URL` can override the default test connection. The test database uses Docker `tmpfs` storage, so its data is temporary.
 
-The suite contains **27 tests**:
+The suite contains **31 tests**:
 
 | File | Tests | Main coverage |
 | --- | ---: | --- |
 | `database.test.ts` | 2 | Isolated database connection and required tables |
 | `consume.test.ts` | 11 | Counting, zero consumption on rejection, retries, conflicts, concurrency, and plan changes |
-| `auth-isolation.test.ts` | 10 | API-key authentication, account isolation, validation, usage, and history |
+| `auth-isolation.test.ts` | 13 | API-key authentication, account isolation, validation, usage, history, period separation, and future-month rejection |
 | `consume-batcher.test.ts` | 4 | Shared quota enforcement, duplicate requests, savepoint isolation, and queue capacity |
+| `error-handler.test.ts` | 1 | Returns 413 when the JSON request body exceeds the size limit |
 
-Tests inspect persisted counters and request records in addition to response values. The validation run passed all 27 tests.
+Tests inspect persisted counters and request records in addition to response values. The validation run passed all 31 tests.
 
 A separate fresh Compose project was also started successfully and completed the API demonstration against a new database volume.
 
