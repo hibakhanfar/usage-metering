@@ -204,6 +204,7 @@ export const openapi: Record<string, any> = {
           "401": { description: "Missing or invalid API key" },
           "404": { description: "User not found under this account" },
           "409": { description: "requestId already used with different userId or units" },
+          "503": { description:"Too many pending consume requests; retry with the same requestId", },
         },
       },
     },
@@ -426,7 +427,17 @@ export const openapi: Record<string, any> = {
     },
   },
 },
+
 "/users": {
+    get: {
+    summary: "List this account's users",
+    tags: ["Users"],
+    security: [{ ApiKey: [] }],
+    responses: {
+      "200": { description: "Account users" },
+      "401": { description: "Missing or invalid API key" },
+    },
+  },
   post: {
     summary: "Register a user under the current account",
     tags: ["Users"],
