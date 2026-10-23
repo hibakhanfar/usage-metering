@@ -33,7 +33,6 @@ async function call(method, path, body, headers = {}) {
 }
 
 async function main() {
-  // Administrative setup for a fresh, repeatable demonstration.
   const account = await call(
     "POST",
     "/admin/accounts",
@@ -44,7 +43,6 @@ async function main() {
     { "x-admin-token": adminToken },
   );
 
-  // All account operations below use the account's API key.
   const headers = { "x-api-key": account.apiKey };
 
   const api = (method, path, body) =>

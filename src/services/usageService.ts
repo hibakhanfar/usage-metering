@@ -115,7 +115,6 @@ export async function getUsage(
         .limit(query.limit)
         .offset(query.offset);
 
-      // Read account counters plus counters for this page of users.
       const visibleUserIds = userRows.map((user) => user.id);
 
       const counterScope = visibleUserIds.length > 0

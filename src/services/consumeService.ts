@@ -1,9 +1,10 @@
 import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import type { Db } from "../db/client";
 import { accounts, plans, requests, usageCounters, users } from "../db/schema";
 import { conflict, notFound } from "../lib/errors";
 
-type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
+export type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 export type Scope = "account" | "user";
 export type RuleName = "max_per_request" | "monthly_allowance" | "daily_allowance";
@@ -28,71 +29,81 @@ type CounterSpec = {
   scope: Scope;
   period: "month" | "day";
   periodStart: string;
-  userId: string | null; // null = the account-level (shared) counter
-  limit: number | null; // null = unlimited
+  userId: string | null;
+  limit: number | null;
   rule: RuleName;
 };
 
 export type ConsumeInput = { userId: string; units: number; requestId: string };
 
-class QuotaRejected extends Error {
-  constructor(public failed: CounterSpec) {
-    super("quota_rejected");
-  }
-}
-
-// ---------- helpers ----------
-
-async function currentPeriods(tx: Tx): Promise<{ today: string; month: string }> {
-  // One clock for everything: the database, in UTC. now() is fixed for the whole transaction.
-  const result = await tx.execute(sql`
-    select
-      to_char(now() at time zone 'utc', 'YYYY-MM-DD') as today,
-      to_char(date_trunc('month', now() at time zone 'utc'), 'YYYY-MM-DD') as month
-  `);
-  const row = result.rows[0] as { today: string; month: string };
-  return { today: row.today, month: row.month };
-}
-
-async function loadPlans(tx: Tx, accountId: string, externalUserId: string) {
-  const [account] = await tx
+async function loadContext(tx: Tx, accountId: string, externalUserId: string) {
+  const userPlan = alias(plans, "user_plan");
+  const [row] = await tx
     .select({
-      id: plans.id,
-      name: plans.name,
-      monthlyAllowance: plans.monthlyAllowance,
-      dailyAllowance: plans.dailyAllowance,
-      maxPerRequest: plans.maxPerRequest,
+      accountPlanId: plans.id,
+      accountPlanName: plans.name,
+      accountMonthly: plans.monthlyAllowance,
+      accountDaily: plans.dailyAllowance,
+      accountMax: plans.maxPerRequest,
+      userId: users.id,
+      userPlanId: userPlan.id,
+      userPlanName: userPlan.name,
+      userMonthly: userPlan.monthlyAllowance,
+      userDaily: userPlan.dailyAllowance,
+      userMax: userPlan.maxPerRequest,
+      processedAt: sql<string>`statement_timestamp()::text`,
+
+today: sql<string>`
+  to_char(
+    statement_timestamp() at time zone 'utc',
+    'YYYY-MM-DD'
+  )
+`,
+
+month: sql<string>`
+  to_char(
+    date_trunc(
+      'month',
+      statement_timestamp() at time zone 'utc'
+    ),
+    'YYYY-MM-DD'
+  )
+`,
     })
     .from(accounts)
     .innerJoin(plans, eq(accounts.accountPlanId, plans.id))
+    .leftJoin(users, and(eq(users.accountId, accounts.id), eq(users.externalId, externalUserId)))
+    .leftJoin(userPlan, eq(users.userPlanId, userPlan.id))
     .where(eq(accounts.id, accountId));
 
-  const [user] = await tx
-    .select({
-      userId: users.id,
-      id: plans.id,
-      name: plans.name,
-      monthlyAllowance: plans.monthlyAllowance,
-      dailyAllowance: plans.dailyAllowance,
-      maxPerRequest: plans.maxPerRequest,
-    })
-    .from(users)
-    .innerJoin(plans, eq(users.userPlanId, plans.id))
-    .where(and(eq(users.accountId, accountId), eq(users.externalId, externalUserId)));
-
-  if (!account) {
+  if (!row) {
     throw notFound("Account not found");
   }
-  if (!user) {
+  if (!row.userId || !row.userPlanId || row.userPlanName === null) {
     throw notFound(`User "${externalUserId}" not found`);
   }
-  const { userId, ...userPlan } = user;
-  return { userId, userPlan: userPlan as PlanInfo, accountPlan: account as PlanInfo };
+
+  return {
+    userId: row.userId,
+    userPlan: {
+      id: row.userPlanId,
+      name: row.userPlanName,
+      monthlyAllowance: row.userMonthly,
+      dailyAllowance: row.userDaily,
+      maxPerRequest: row.userMax,
+    } as PlanInfo,
+    accountPlan: {
+      id: row.accountPlanId,
+      name: row.accountPlanName,
+      monthlyAllowance: row.accountMonthly,
+      dailyAllowance: row.accountDaily,
+      maxPerRequest: row.accountMax,
+    } as PlanInfo,
+    processedAt: new Date(row.processedAt),
+    periods: { today: row.today, month: row.month },
+  };
 }
 
-// Order matters: this is both the locking order and the order rejection reasons are reported in.
-// User counters first, shared account counters last (the account rows are the hot spot,
-// so we hold their locks for as short a time as possible).
 function buildSpecs(
   userId: string,
   userPlan: Limits,
@@ -116,35 +127,121 @@ function counterWhere(accountId: string, spec: CounterSpec) {
   );
 }
 
-async function ensureCounters(tx: Tx, accountId: string, specs: CounterSpec[]) {
-  await tx
-    .insert(usageCounters)
-    .values(
-      specs.map((s) => ({
-        accountId,
-        userId: s.userId,
-        periodType: s.period,
-        periodStart: s.periodStart,
-        unitsUsed: 0,
-      })),
-    )
-    .onConflictDoNothing();
+async function counterIds(
+  tx: Tx,
+  accountId: string,
+  specs: CounterSpec[],
+): Promise<{ ids: string[]; used: number[] }> {
+  const find = () =>
+    tx
+      .select({
+        id: usageCounters.id,
+        userId: usageCounters.userId,
+        periodType: usageCounters.periodType,
+        periodStart: usageCounters.periodStart,
+        unitsUsed: usageCounters.unitsUsed,
+      })
+      .from(usageCounters)
+      .where(or(...specs.map((spec) => counterWhere(accountId, spec))));
+
+  const match = (rows: Awaited<ReturnType<typeof find>>, spec: CounterSpec) =>
+    rows.find(
+      (r) => r.userId === spec.userId && r.periodType === spec.period && r.periodStart === spec.periodStart,
+    );
+
+  let rows = await find();
+  const missing = specs.filter((spec) => !match(rows, spec));
+
+  if (missing.length > 0) {
+    await tx
+      .insert(usageCounters)
+      .values(
+        missing.map((spec) => ({
+          accountId,
+          userId: spec.userId,
+          periodType: spec.period,
+          periodStart: spec.periodStart,
+          unitsUsed: 0,
+        })),
+      )
+      .onConflictDoNothing(); 
+    rows = await find();
+  }
+
+  const hits = specs.map((spec) => {
+    const hit = match(rows, spec);
+    if (!hit) {
+      throw new Error("usage counter row is missing");
+    }
+    return hit;
+  });
+  return { ids: hits.map((h) => h.id), used: hits.map((h) => h.unitsUsed) };
 }
 
-// The heart of the service: check + increment in ONE atomic statement.
-// If the limit would be exceeded no row matches, nothing changes, and we get 0 rows back.
-async function tryIncrement(tx: Tx, accountId: string, spec: CounterSpec, units: number): Promise<boolean> {
-  const rows = await tx
-    .update(usageCounters)
-    .set({ unitsUsed: sql`${usageCounters.unitsUsed} + ${units}` })
-    .where(
-      and(
-        counterWhere(accountId, spec),
-        spec.limit === null ? undefined : sql`${usageCounters.unitsUsed} + ${units} <= ${spec.limit}`,
-      ),
+type Applied = { ok: boolean; before: number[]; used: number[] };
+
+async function applyIncrements(
+  tx: Tx,
+  specs: CounterSpec[],
+  ids: string[],
+  units: number,
+  claimId: string,
+): Promise<Applied> {
+  const values = sql.join(
+    specs.map((s, i) => sql`(${i}::int, ${ids[i]!}::uuid, ${s.limit}::bigint)`),
+    sql`, `,
+  );
+
+  const result = await tx.execute(sql`
+    with specs(ord, id, lim) as (values ${values}),
+    locked as materialized (
+      select c.id, c.units_used, s.ord, s.lim
+        from usage_counters c
+        join specs s on s.id = c.id
+       order by s.ord
+         for update of c
+    ),
+    verdict as (
+      select coalesce(bool_and(lim is null or units_used + ${units}::bigint <= lim), true) as ok
+        from locked
+    ),
+    bumped as (
+      update usage_counters u
+         set units_used = u.units_used + ${units}::bigint
+        from locked l, verdict v
+       where u.id = l.id and v.ok
+      returning u.id, u.units_used
+    ),
+    decided as (
+      update requests r
+         set accepted = true
+        from verdict v
+       where r.id = ${claimId}::uuid and v.ok
+      returning r.id
     )
-    .returning({ id: usageCounters.id });
-  return rows.length > 0;
+    select l.ord, l.units_used as before_used, v.ok, b.units_used as after_used
+      from locked l
+     cross join verdict v
+      left join bumped b on b.id = l.id
+     order by l.ord
+  `);
+
+  const rows = result.rows as {
+    ord: number | string;
+    before_used: number | string;
+    ok: boolean;
+    after_used: number | string | null;
+  }[];
+
+  if (rows.length !== specs.length) {
+    throw new Error("usage counter rows missing from the increment statement");
+  }
+
+  rows.sort((a, b) => Number(a.ord) - Number(b.ord));
+  const ok = rows[0]!.ok;
+  const before = rows.map((r) => Number(r.before_used));
+  const used = ok ? rows.map((r) => Number(r.after_used)) : before;
+  return { ok, before, used };
 }
 
 async function readUsage(tx: Tx, accountId: string, userId: string, p: { today: string; month: string }) {
@@ -175,7 +272,7 @@ async function readUsage(tx: Tx, accountId: string, userId: string, p: { today: 
 const line = (limit: number | null, used: number) => ({
   limit,
   used,
-  remaining: limit === null ? null : Math.max(0, limit - used), // never negative
+  remaining: limit === null ? null : Math.max(0, limit - used), 
 });
 
 function balance(plan: PlanInfo, specs: CounterSpec[], scope: Scope, usedOf: (s: CounterSpec) => number) {
@@ -189,127 +286,127 @@ function balance(plan: PlanInfo, specs: CounterSpec[], scope: Scope, usedOf: (s:
   };
 }
 
-// ---------- main entry point ----------
+export async function consumeInTx(tx: Tx, accountId: string, input: ConsumeInput) {
+const {
+  userId,
+  userPlan,
+  accountPlan,
+  periods,
+  processedAt,
+} = await loadContext(tx, accountId, input.userId);  const specs = buildSpecs(userId, userPlan, accountPlan, periods);
 
-export async function consume(db: Db, accountId: string, input: ConsumeInput) {
-  return db.transaction(async (tx) => {
-    const { userId, userPlan, accountPlan } = await loadPlans(tx, accountId, input.userId);
-    const periods = await currentPeriods(tx);
-    const specs = buildSpecs(userId, userPlan, accountPlan, periods);
+  const claimed = await tx
+    .insert(requests)
+    .values({
+      accountId,
+      userId,
+      requestId: input.requestId,
+      units: input.units,
+      accepted: false, 
+      month: periods.month,
+      createdAt: processedAt,
+    })
+    .onConflictDoNothing()
+    .returning({ id: requests.id });
 
-    // 1) Claim the requestId. The UNIQUE(account_id, request_id) index makes this the single
-    //    point of arbitration: concurrent duplicates wait here, then see the winner's row.
-    const claimed = await tx
-      .insert(requests)
-      .values({
-        accountId,
-        userId,
-        requestId: input.requestId,
-        units: input.units,
-        accepted: false, // placeholder, set below in the same transaction
-        month: periods.month,
-      })
-      .onConflictDoNothing()
-      .returning({ id: requests.id });
-
-    // 2) Retry of a request we already decided: return the stored decision, consume nothing.
-    if (claimed.length === 0) {
-      const [existing] = await tx
-        .select()
-        .from(requests)
-        .where(and(eq(requests.accountId, accountId), eq(requests.requestId, input.requestId)));
-      if (!existing) {
-        throw new Error("requestId conflict but no stored request found");
-      }
-      if (existing.userId !== userId || existing.units !== input.units) {
-        throw conflict(`requestId "${input.requestId}" was already used with different parameters`);
-      }
-      const usedOf = await readUsage(tx, accountId, userId, periods);
-      return {
-        requestId: input.requestId,
-        userId: input.userId,
-        units: input.units,
-        accepted: existing.accepted,
-        replayed: true,
-        rejectedBy: existing.rejectedBy,
-        rule: existing.rejectedRule,
-        violations: existing.violations ? (JSON.parse(existing.violations) as Violation[]) : [],
-        user: balance(userPlan, specs, "user", usedOf),
-        account: balance(accountPlan, specs, "account", usedOf),
-      };
+  if (claimed.length === 0) {
+    const [existing] = await tx
+      .select()
+      .from(requests)
+      .where(and(eq(requests.accountId, accountId), eq(requests.requestId, input.requestId)));
+    if (!existing) {
+      throw new Error("requestId conflict but no stored request found");
     }
-    const claimId = claimed[0]!.id;
-
-    // 3) Per-request limits: a plain comparison, no counters touched.
-    let violations: Violation[] = [];
-    if (userPlan.maxPerRequest !== null && input.units > userPlan.maxPerRequest) {
-      violations.push({ scope: "user", rule: "max_per_request", limit: userPlan.maxPerRequest, requested: input.units });
+    if (existing.userId !== userId || existing.units !== input.units) {
+      throw conflict(`requestId "${input.requestId}" was already used with different parameters`);
     }
-    if (accountPlan.maxPerRequest !== null && input.units > accountPlan.maxPerRequest) {
-      violations.push({ scope: "account", rule: "max_per_request", limit: accountPlan.maxPerRequest, requested: input.units });
-    }
-
-    // 4) Monthly + daily allowances: atomic conditional increments inside a savepoint.
-    //    If any one fails, the savepoint rolls back the others, so a rejection consumes nothing.
-    let failed: CounterSpec | null = null;
-    if (violations.length === 0) {
-      await ensureCounters(tx, accountId, specs);
-      try {
-        await tx.transaction(async (sp) => {
-          for (const spec of specs) {
-            if (!(await tryIncrement(sp, accountId, spec, input.units))) {
-              throw new QuotaRejected(spec);
-            }
-          }
-        });
-      } catch (err) {
-        if (!(err instanceof QuotaRejected)) {
-          throw err;
-        }
-        failed = err.failed;
-      }
-    }
-
-    // 5) Read the final numbers once (after the rollback, if there was one).
     const usedOf = await readUsage(tx, accountId, userId, periods);
-
-    if (failed) {
-      // Report every allowance that cannot fit this request, in the fixed order above.
-      for (const spec of specs) {
-        if (spec.limit !== null && usedOf(spec) + input.units > spec.limit) {
-          violations.push({ scope: spec.scope, rule: spec.rule, limit: spec.limit, used: usedOf(spec), requested: input.units });
-        }
-      }
-      if (violations.length === 0) {
-        // Another request freed room in the meantime; still report the rule that failed.
-        violations.push({ scope: failed.scope, rule: failed.rule, limit: failed.limit!, requested: input.units });
-      }
-    }
-
-    const accepted = violations.length === 0;
-    const primary = violations[0];
-
-    await tx
-      .update(requests)
-      .set({
-        accepted,
-        rejectedBy: primary?.scope ?? null,
-        rejectedRule: primary?.rule ?? null,
-        violations: accepted ? null : JSON.stringify(violations),
-      })
-      .where(eq(requests.id, claimId));
-
     return {
       requestId: input.requestId,
       userId: input.userId,
       units: input.units,
-      accepted,
-      replayed: false,
-      rejectedBy: primary?.scope ?? null,
-      rule: primary?.rule ?? null,
-      violations,
+      accepted: existing.accepted,
+      replayed: true,
+      rejectedBy: existing.rejectedBy,
+      rule: existing.rejectedRule,
+      violations: existing.violations ? (JSON.parse(existing.violations) as Violation[]) : [],
       user: balance(userPlan, specs, "user", usedOf),
       account: balance(accountPlan, specs, "account", usedOf),
     };
-  });
+  }
+  const claimId = claimed[0]!.id;
+
+  const violations: Violation[] = [];
+  if (userPlan.maxPerRequest !== null && input.units > userPlan.maxPerRequest) {
+    violations.push({ scope: "user", rule: "max_per_request", limit: userPlan.maxPerRequest, requested: input.units });
+  }
+  if (accountPlan.maxPerRequest !== null && input.units > accountPlan.maxPerRequest) {
+    violations.push({ scope: "account", rule: "max_per_request", limit: accountPlan.maxPerRequest, requested: input.units });
+  }
+
+  let usedOf: (s: CounterSpec) => number;
+  if (violations.length === 0) {
+    const { ids, used } = await counterIds(tx, accountId, specs);
+
+    specs.forEach((spec, i) => {
+      if (spec.limit !== null && used[i]! + input.units > spec.limit) {
+        violations.push({ scope: spec.scope, rule: spec.rule, limit: spec.limit, used: used[i]!, requested: input.units });
+      }
+    });
+
+    if (violations.length > 0) {
+      usedOf = (spec) => used[specs.indexOf(spec)]!;
+    } else {
+      const applied = await applyIncrements(tx, specs, ids, input.units, claimId);
+      usedOf = (spec) => applied.used[specs.indexOf(spec)]!;
+
+      if (!applied.ok) {
+        specs.forEach((spec, i) => {
+          const before = applied.before[i]!;
+          if (spec.limit !== null && before + input.units > spec.limit) {
+            violations.push({ scope: spec.scope, rule: spec.rule, limit: spec.limit, used: before, requested: input.units });
+          }
+        });
+        if (violations.length === 0) {
+          throw new Error("increment rejected but no violated allowance found");
+        }
+      }
+    }
+  } else {
+    usedOf = await readUsage(tx, accountId, userId, periods);
+  }
+
+  const accepted = violations.length === 0;
+  const primary = violations[0];
+
+  if (!accepted) {
+    await tx
+      .update(requests)
+      .set({
+        accepted: false,
+        rejectedBy: primary!.scope,
+        rejectedRule: primary!.rule,
+        violations: JSON.stringify(violations),
+      })
+      .where(eq(requests.id, claimId));
+  }
+
+  return {
+    requestId: input.requestId,
+    userId: input.userId,
+    units: input.units,
+    accepted,
+    replayed: false,
+    rejectedBy: primary?.scope ?? null,
+    rule: primary?.rule ?? null,
+    violations,
+    user: balance(userPlan, specs, "user", usedOf),
+    account: balance(accountPlan, specs, "account", usedOf),
+  };
+}
+
+export type ConsumeResult = Awaited<ReturnType<typeof consumeInTx>>;
+
+export function consume(db: Db, accountId: string, input: ConsumeInput): Promise<ConsumeResult> {
+  return db.transaction((tx) => consumeInTx(tx, accountId, input));
 }

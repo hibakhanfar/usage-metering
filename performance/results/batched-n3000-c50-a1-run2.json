@@ -1,0 +1,341 @@
+{
+  "generatedAt": "2026-10-22T13:04:07.520Z",
+  "workload": {
+    "requests": 3000,
+    "virtualUsers": 50,
+    "accounts": 1,
+    "registeredUsersPerAccount": 10,
+    "accountMonthlyAllowance": 1500,
+    "unitsPerOperation": 1
+  },
+  "summary": {
+    "metrics": {
+      "http_reqs": {
+        "type": "counter",
+        "contains": "default",
+        "values": {
+          "count": 3017,
+          "rate": 142.87676692932592
+        }
+      },
+      "quota_rejected_operations": {
+        "values": {
+          "count": 1500,
+          "rate": 71.03584699833904
+        },
+        "thresholds": {
+          "count==1500": {
+            "ok": true
+          }
+        },
+        "type": "counter",
+        "contains": "default"
+      },
+      "http_req_duration{expected_response:true}": {
+        "type": "trend",
+        "contains": "time",
+        "values": {
+          "avg": 333.7151570364596,
+          "min": 10.499264,
+          "med": 318.409712,
+          "max": 556.562358,
+          "p(90)": 418.0194712000003,
+          "p(95)": 496.28967059999997
+        }
+      },
+      "data_received": {
+        "type": "counter",
+        "contains": "data",
+        "values": {
+          "count": 2584232,
+          "rate": 122382.07264014112
+        }
+      },
+      "iterations": {
+        "contains": "default",
+        "values": {
+          "count": 3000,
+          "rate": 142.07169399667808
+        },
+        "type": "counter"
+      },
+      "accepted_operations": {
+        "contains": "default",
+        "values": {
+          "count": 1500,
+          "rate": 71.03584699833904
+        },
+        "thresholds": {
+          "count==1500": {
+            "ok": true
+          }
+        },
+        "type": "counter"
+      },
+      "http_req_receiving": {
+        "type": "trend",
+        "contains": "time",
+        "values": {
+          "p(90)": 0.1484694,
+          "p(95)": 0.2041888,
+          "avg": 0.06779090851839575,
+          "min": 0.012002,
+          "med": 0.040881,
+          "max": 1.40546
+        }
+      },
+      "http_req_duration": {
+        "type": "trend",
+        "contains": "time",
+        "values": {
+          "avg": 333.7151570364596,
+          "min": 10.499264,
+          "med": 318.409712,
+          "max": 556.562358,
+          "p(90)": 418.0194712000003,
+          "p(95)": 496.28967059999997
+        }
+      },
+      "http_req_tls_handshaking": {
+        "type": "trend",
+        "contains": "time",
+        "values": {
+          "min": 0,
+          "med": 0,
+          "max": 0,
+          "p(90)": 0,
+          "p(95)": 0,
+          "avg": 0
+        }
+      },
+      "http_req_sending": {
+        "type": "trend",
+        "contains": "time",
+        "values": {
+          "avg": 0.027951555850182285,
+          "min": 0.005796,
+          "med": 0.011594,
+          "max": 1.95252,
+          "p(90)": 0.05061420000000001,
+          "p(95)": 0.09249219999999997
+        }
+      },
+      "iteration_duration": {
+        "type": "trend",
+        "contains": "time",
+        "values": {
+          "p(90)": 420.8403439,
+          "p(95)": 496.7612164999999,
+          "avg": 335.62448584799967,
+          "min": 123.972526,
+          "med": 318.969939,
+          "max": 558.231906
+        }
+      },
+      "vus": {
+        "type": "gauge",
+        "contains": "default",
+        "values": {
+          "value": 13,
+          "min": 13,
+          "max": 50
+        }
+      },
+      "vus_max": {
+        "type": "gauge",
+        "contains": "default",
+        "values": {
+          "value": 50,
+          "min": 50,
+          "max": 50
+        }
+      },
+      "checks": {
+        "type": "rate",
+        "contains": "default",
+        "values": {
+          "rate": 1,
+          "passes": 6007,
+          "fails": 0
+        },
+        "thresholds": {
+          "rate==1": {
+            "ok": true
+          }
+        }
+      },
+      "http_req_failed": {
+        "values": {
+          "fails": 3017,
+          "rate": 0,
+          "passes": 0
+        },
+        "thresholds": {
+          "rate==0": {
+            "ok": true
+          }
+        },
+        "type": "rate",
+        "contains": "default"
+      },
+      "http_req_duration{endpoint:consume}": {
+        "type": "trend",
+        "contains": "time",
+        "values": {
+          "min": 122.556364,
+          "med": 318.7054,
+          "max": 556.562358,
+          "p(90)": 420.4465957,
+          "p(95)": 496.33854129999986,
+          "avg": 335.3659370893328
+        },
+        "thresholds": {
+          "p(95)<2000": {
+            "ok": true
+          }
+        }
+      },
+      "http_req_connecting": {
+        "type": "trend",
+        "contains": "time",
+        "values": {
+          "p(95)": 0,
+          "avg": 0.012773018230029829,
+          "min": 0,
+          "med": 0,
+          "max": 3.310009,
+          "p(90)": 0
+        }
+      },
+      "http_req_waiting": {
+        "type": "trend",
+        "contains": "time",
+        "values": {
+          "med": 318.355045,
+          "max": 556.253398,
+          "p(90)": 417.8073376000003,
+          "p(95)": 496.12751399999996,
+          "avg": 333.6194145720917,
+          "min": 10.400847
+        }
+      },
+      "http_req_blocked": {
+        "contains": "time",
+        "values": {
+          "p(90)": 0.010094,
+          "p(95)": 0.0133914,
+          "avg": 0.02033799635399385,
+          "min": 0.0014,
+          "med": 0.002998,
+          "max": 3.382276
+        },
+        "type": "trend"
+      },
+      "data_sent": {
+        "type": "counter",
+        "contains": "data",
+        "values": {
+          "count": 810172,
+          "rate": 38367.502822892224
+        }
+      }
+    },
+    "root_group": {
+      "groups": [
+        {
+          "id": "a8a9942382e8ffe2e56ef29e664b8229",
+          "groups": [],
+          "checks": [
+              {
+                "name": "account 0: all ten users are included",
+                "path": "::teardown::account 0: all ten users are included",
+                "id": "131bc965945ee44f066e4c065fa01734",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "name": "account 0: account usage equals allowance",
+                "path": "::teardown::account 0: account usage equals allowance",
+                "id": "6cf2784335d614d5b8e108bd281836d1",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "name": "account 0: remaining allowance is zero",
+                "path": "::teardown::account 0: remaining allowance is zero",
+                "id": "cb3753b55fe80133abdd57feb38b3a55",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "path": "::teardown::account 0: account usage equals sum of user usage",
+                "id": "aded17e8c5d404ea1479e7c02b251aff",
+                "passes": 1,
+                "fails": 0,
+                "name": "account 0: account usage equals sum of user usage"
+              },
+              {
+                "fails": 0,
+                "name": "account 0: daily totals match monthly totals",
+                "path": "::teardown::account 0: daily totals match monthly totals",
+                "id": "16e34c4e582e3263eeacf86707d9c519",
+                "passes": 1
+              },
+              {
+                "name": "account 0: every operation has one history record",
+                "path": "::teardown::account 0: every operation has one history record",
+                "id": "2690042686c0d4fdb55c5a3839edb062",
+                "passes": 1,
+                "fails": 0
+              },
+              {
+                "id": "7c3982fd4ddaefca4b0a1bc59a294b85",
+                "passes": 1,
+                "fails": 0,
+                "name": "account 0: accepted history matches consumption",
+                "path": "::teardown::account 0: accepted history matches consumption"
+              }
+            ],
+          "name": "teardown",
+          "path": "::teardown"
+        }
+      ],
+      "checks": [
+        {
+          "fails": 0,
+          "name": "decision is valid",
+          "path": "::decision is valid",
+          "id": "2732a69411a2fff63b3b4eb3115884cd",
+          "passes": 3000
+        },
+        {
+          "id": "25f5635f52361903c5cc066609f08395",
+          "passes": 3000,
+          "fails": 0,
+          "name": "rejections identify the account monthly limit",
+          "path": "::rejections identify the account monthly limit"
+        }
+      ],
+      "name": "",
+      "path": "",
+      "id": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "options": {
+      "summaryTrendStats": [
+        "avg",
+        "min",
+        "med",
+        "max",
+        "p(90)",
+        "p(95)"
+      ],
+      "summaryTimeUnit": "",
+      "noColor": false
+    },
+    "state": {
+      "isStdOutTTY": false,
+      "isStdErrTTY": false,
+      "testRunDurationMs": 21116.099313
+    }
+  }
+}

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import type { Db } from "../db/client";
 import { apiKeyAuth } from "../middleware/auth";
-import { consume } from "../services/consumeService";
+import { ConsumeBatcher } from "../services/consumeBatcher";
 
 const consumeBody = z
   .object({
@@ -14,14 +14,17 @@ const consumeBody = z
 
 export function consumeRouter(db: Db) {
   const router = Router();
+const batcher = new ConsumeBatcher(
+  db,
+  Number(process.env.CONSUME_BATCH_MAX ?? 50),
+  Number(process.env.CONSUME_MAX_PENDING ?? 1000),
+);
   router.use(apiKeyAuth(db));
 
   router.post("/", async (req, res, next) => {
     try {
       const body = consumeBody.parse(req.body);
-      // 200 for both accepted and rejected: the service answered the question.
-      // Only malformed or conflicting requests are HTTP errors.
-      res.json(await consume(db, req.account!.id, body));
+      res.json(await batcher.consume(req.account!.id, body));
     } catch (err) {
       next(err);
     }
